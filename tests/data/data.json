@@ -1,0 +1,59 @@
+{
+    "dimension": 3,
+    "extration": [
+        "SS",
+        "FOS",
+        "GLCM",
+        "GLRLM"
+    ],
+    "settings": [
+        [
+            [
+                {
+                    "min": 0,
+                    "max": "N"
+                }
+            ],
+            [
+                {
+                    "min": 0,
+                    "max": "N"
+                }
+            ]
+        ]
+    ],
+    "dataset": [
+        [
+            {
+                "image": "/data/MYDATA/AUGMENTED_RADIOMIC_HIP3/input/Leftp02_rt_0.149_0.247_-6.060_2.163_-4.351_3.036_noise_0.nii.gz",
+                "labelmap": "/data/MYDATA/AUGMENTED_RADIOMIC_HIP3/output/Leftp02_rt_0.149_0.247_-6.060_2.163_-4.351_3.036_noise_0.nii.gz",
+                "labelmapvalue": 1,
+                "settings": null,
+                "name":"acetabulum"
+            },
+            {
+                "image": "/data/MYDATA/AUGMENTED_RADIOMIC_HIP3/input/Leftp02_rt_0.149_0.247_-6.060_2.163_-4.351_3.036_noise_0.nii.gz",
+                "labelmap": "/data/MYDATA/AUGMENTED_RADIOMIC_HIP3/output/Leftp02_rt_0.149_0.247_-6.060_2.163_-4.351_3.036_noise_0.nii.gz",
+                "labelmapvalue": 2,
+                "settings": null,
+                "name":"femur"
+            }
+        ],
+        [
+            {
+                "image": "/data/MYDATA/AUGMENTED_RADIOMIC_HIP3/input/Leftp02_rt_0.174_0.582_-4.416_3.505_-0.267_1.904_noise_0.nii.gz",
+                "labelmap": "/data/MYDATA/AUGMENTED_RADIOMIC_HIP3/output/Leftp02_rt_0.174_0.582_-4.416_3.505_-0.267_1.904_noise_0.nii.gz",
+                "labelmapvalue": 1,
+                "settings": null,
+                "name":"acetabulum"
+            },
+            {
+                "image": "/data/MYDATA/AUGMENTED_RADIOMIC_HIP3/input/Leftp02_rt_0.174_0.582_-4.416_3.505_-0.267_1.904_noise_0.nii.gz",
+                "labelmap": "/data/MYDATA/AUGMENTED_RADIOMIC_HIP3/output/Leftp02_rt_0.174_0.582_-4.416_3.505_-0.267_1.904_noise_0.nii.gz",
+                "labelmapvalue": 2,
+                "settings": null,
+                "name":"femur"
+            }
+        ]
+    ]
+}
