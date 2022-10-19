@@ -1,7 +1,6 @@
 import ctypes
 
 import os
-from tkinter.messagebox import RETRY
 from pynico_eros_montin import pynico as pn
 
 class FE():
@@ -14,7 +13,7 @@ class FE():
 
   
         self.PT=PT        
-        self.Options=None
+        self.Options={}
         self.Image=None
         self.ROI=None
         self.ROIvalue=1
@@ -52,10 +51,10 @@ class FE():
     
     def setOptions(self, o=None):
         if o:
-            for key in self.Options():
+            for key in self.Options.keys():
                 try: 
-                    if o[key]:               
-                        setattr(self, key, o[key])
+                    if key in o.keys():               
+                        self.Options[key]=o[key]
                 except:
                     pass
     def writeoptionsTofile(self,filename):
@@ -74,16 +73,16 @@ class BD2DecideFE(FE):
     def __init__(self,dimension=3,image=None,roi=None,roiv=None,PT=None,options=None) -> None:
         super().__init__(image,roi,roiv,PT)
         self.trash=pn.GarbageCollector()
-        self.min="N"
-        self.nt=12
-        self.max="N"
-        self.bin=32
-        self.marginalScale=1
+
+        self.Options["min"]="N"
+        self.Options["nt"]=12
+        self.Options["max"]="N"
+        self.Options["bin"]=32
+        self.Options["marginalScale"]=0.5
         self.outputN= pn.createRandomTemporaryPathableFromFileName('a.txt',self.PT).getPosition()
         self.outputV= pn.createRandomTemporaryPathableFromFileName('a.txt',self.PT).getPosition()
         self.trash.throw(self.outputN)
         self.trash.throw(self.outputV)
-        self.maskOut= None
         self.dimension=dimension
         if options:
             self.setOptions(options)
@@ -108,6 +107,7 @@ class BD2DecideFE(FE):
         if ((pn.Pathable(self.outputN).exists()) and (pn.Pathable(self.outputN).exists())):
             out= self.__getResults__(domain)
         return out
+    
         
 
 class SS(BD2DecideFE):
@@ -117,7 +117,7 @@ class SS(BD2DecideFE):
             moredomain=''
         aa="N"
         basepath = os.path.dirname(os.path.abspath(__file__))
-        args=(ctypes.c_char_p*7)(b'ss',self.ROI.encode(),str(self.ROIvalue).encode(),aa.encode(),self.outputV.encode(),self.outputN.encode(),str(self.nt).encode())
+        args=(ctypes.c_char_p*7)(b'ss',self.ROI.encode(),str(self.ROIvalue).encode(),aa.encode(),self.outputV.encode(),self.outputN.encode(),str(self.Options["nt"]).encode())
         out =self.__execute__(os.path.join(basepath,"bld/libfe3dss.so"),args,moredomain + "SS")
         return out
 
@@ -129,8 +129,8 @@ class FOS(BD2DecideFE):
   
         basepath = os.path.dirname(os.path.abspath(__file__))
         args=(ctypes.c_char_p*10)(b'fos',self.Image.encode(),self.ROI.encode(),str(self.ROIvalue).encode(),
-        str(self.min).encode(),str(self.max).encode(),
-        str(self.bin).encode(),str(self.marginalScale).encode(),
+        str(self.Options["min"]).encode(),str(self.Options["max"]).encode(),
+        str(self.Options["bin"]).encode(),str(self.Options["marginalScale"]).encode(),
         self.outputV.encode(),self.outputN.encode())
         out={}
         if self.dimension==3:
@@ -143,58 +143,114 @@ class FOS(BD2DecideFE):
 class TEXTURES(BD2DecideFE):
     def __init__(self, image=None, roi=None, roiv=None, PT=None,options=None) -> None:
         super().__init__(image, roi, roiv, PT)
-        self.radius=1
+        self.Options["radius"]=1
         if options:
             self.setOptions(options)
 
 class GLCM(TEXTURES):
      def getFeatures(self,moredomain=None):
-        MASK=''
+
         if not moredomain:
             moredomain=''
-        aa="N"
-        basepath = os.path.dirname(os.path.abspath(__file__))
-        args=(ctypes.c_char_p*12)(b'glcm',self.Image.encode(),self.ROI.encode(),str(self.ROIvalue).encode(),
-        str(self.min).encode(),str(self.max).encode(),
-        str(self.bin).encode(),str(self.radius).encode(),
-        self.outputV.encode(),self.outputN.encode(),
-        str(self.nt).encode())
-
-        print(f'glcm {self.Image} {self.ROI} {self.ROIvalue} {self.min} {self.max} {self.bin} {self.radius} {self.outputV} {self.outputN}  {self.nt}')
         
+     
+        basepath = os.path.dirname(os.path.abspath(__file__))
+        args=(ctypes.c_char_p*11)(b'glcm',self.Image.encode(),self.ROI.encode(),str(self.ROIvalue).encode(),
+        str(self.Options["min"]).encode(),str(self.Options["max"]).encode(),
+        str(self.Options["bin"]).encode(),str(self.Options["radius"]).encode(),
+        self.outputV.encode(),self.outputN.encode(),
+        str(self.Options["nt"]).encode())
+
+
         out={}
         if self.dimension==3:
-            out =self.__execute__(os.path.join(basepath,"bld/libfe3dglcm.so"),args,moredomain + "GLCM_" + str(self.radius))
+            out =self.__execute__(os.path.join(basepath,"bld/libfe3dglcm.so"),args,moredomain + "GLCM_" + str(self.Options["radius"]))
         elif self.dimension==2:
-            out =self.__execute__(os.path.join(basepath,"bld/libfe2dglcm.so"),args,moredomain + "GLCM_" + str(self.radius))
+            out =self.__execute__(os.path.join(basepath,"bld/libfe2dglcm.so"),args,moredomain + "GLCM_" + str(self.Options["radius"]))
 
         return out
 
 
 class GLRLM(TEXTURES):
      def getFeatures(self,moredomain=None):
-        MASK=''
+
         if not moredomain:
             moredomain=''
-        aa="N"
+
         basepath = os.path.dirname(os.path.abspath(__file__))
         args=(ctypes.c_char_p*11)(b'glrlm',self.Image.encode(),self.ROI.encode(),str(self.ROIvalue).encode(),
-        str(self.min).encode(),str(self.max).encode(),
-        str(self.bin).encode(),str(self.radius).encode(),
+        str(self.Options["min"]).encode(),str(self.Options["max"]).encode(),
+        str(self.Options["bin"]).encode(),str(self.Options["radius"]).encode(),
         self.outputV.encode(),self.outputN.encode(),
-        str(self.nt).encode())
+        str(self.Options["nt"]).encode())
         
         out={}
         if self.dimension==3:
-            out =self.__execute__(os.path.join(basepath,"bld/libfe3dglrlm.so"),args,moredomain + "GLRLM_" + str(self.radius))
+            out =self.__execute__(os.path.join(basepath,"bld/libfe3dglrlm.so"),args,moredomain + "GLRLM_" + str(self.Options["radius"]))
         elif self.dimension==2:
-            out =self.__execute__(os.path.join(basepath,"bld/libfe2dglrlm.so"),args,moredomain + "GLRLM_" + str(self.radius))
+            out =self.__execute__(os.path.join(basepath,"bld/libfe2dglrlm.so"),args,moredomain + "GLRLM_" + str(self.Options["radius"]))
 
         return out
         
 
+import multiprocessing
+def exrtactMyFeatures(jf,dimension):
+    P=pn.Pathable(jf)
+    if not P.exists():
+        raise Exception("file do not exists")
+    L=P.readJson()
+    if dimension==3:
+        f=theF3
+    if dimension==2:
+        f=theF2
+
+    with multiprocessing.Pool() as p:
+        # result = p.map(theF3,(L["dataset"]))
+        res = p.map(f,(L["dataset"]))
+    result=[]
+    idx=[]
+    for r,id in res:
+        result.append(r)
+        idx.append(id)
+
+    return result,idx
+
+
+def theF3(X):
+    return theF(X,3)
+def theF2(X):
+    return theF(X,2)
+
+def theF(X,d):
+    out={}
+    for x in X["data"]:
+        TD=[s["name"].lower() for s in x["groups"]]
+        TDs=[s["options"] for s in x["groups"]]
+        for a,o in zip(TD,TDs):
+            if a=="ss":
+                L=SS(d)
+            if a=="fos":
+                L=FOS(d)
+            if a=="glcm":
+                L=GLCM(d)
+            if a=="glrlm":
+                L=GLRLM(d)
+
+            L.setImage(x["image"])
+            L.setROI(x["labelmap"])
+            L.setROIvalue(x["labelmapvalue"])
+            L.setOptions(o)
+            f=L.getFeatures()
+            ft=list(f.keys())[0]
+            if not (x["groupPrefix"] in out.keys()):
+                out[x["groupPrefix"]]={}
+            if not (ft in out[x["groupPrefix"]].keys()):
+                out[x["groupPrefix"]][ft]={}
+            out[x["groupPrefix"]][ft]= f[ft]
+    return out, X["id"]
 if __name__=="__main__":
-    # P=pn.Pathable('/data/PERSONALPROJECTS/myPackages/pyfe/pyfe_eros_montin/data/data.json')
+    # P=pn.Pathable('/data/PERSONALPROJECTS/myPackages/pyfe/tests/data/data.json')
+    # P=pn.Pathable('/data/MYDATA/TDCS/EROS_TDCS/_Hman.json')
     # o=P.readJson()
     # x=o["dataset"][0][0]
 
@@ -207,10 +263,32 @@ if __name__=="__main__":
     # L.setOptions(x["settings"])
     # L.getFeatures()
     # print(L.getFeatures())
-   o=fetchMyData('/data/PERSONALPROJECTS/myPackages/pyfe/pyfe_eros_montin/data/data.json')
+#    o,i=exrtactMyFeatures('/data/MYDATA/TDCS/EROS_TDCS/_Hman.json',2)
 
-   P=pn.createRandomTemporaryPathableFromFileName('a.json','/data/tttt')
-   P.writeJson(o)
+    P=pn.Pathable('/data/MYDATA/TDCS/EROS_TDCS/Hman.json')
+
+    o=P.readJson()
+    x=o["dataset"][0]["data"][5]
+
+
+
+    L=GLCM(3)
+    L.setImage(x["image"])
+    L.setROI(x['labelmap'])
+    L.setROIvalue(x["labelmapvalue"])
+    L.setOptions(x["groups"][0]["options"])
+    L.getFeatures()
+    print(L.getFeatures())
+ 
+ 
+#  #  o,i=exrtactMyFeatures('/data/PERSONALPROJECTS/myPackages/pyfe/tests/data/data.json',3)
+#    o,i=exrtactMyFeatures('/data/MYDATA/TDCS/EROS_TDCS/Mman.json',2)
+
+#    print(i)
+#    P=pn.Pathable('/data/tttt/a.json')
+#    P.writeJson(o)
+#    P=pn.Pathable('/data/tttt/ai.json')
+#    P.writeJson(i)
 
 
 
