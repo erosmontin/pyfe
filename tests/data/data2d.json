@@ -1,0 +1,160 @@
+{
+    "dimension": 2,
+    "dataset": [
+        {
+            "id": "NC_sub14_20190117",
+            "augment": {
+                "n": 10,
+                "type": "able",
+                "options": {
+                    "r": [
+                        [
+                            -5,
+                            5
+                        ]
+                    ],
+                    "t": [
+                        [
+                            -5,
+                            5
+                        ],
+                        [
+                            -5,
+                            5
+                        ]
+                    ]
+                }
+            },
+            "data": [
+                {
+                    "image": "/data/MYDATA/TDCS/EROS_TDCS/Healthy/NC_sub14_20190117/PRE_LCA_PHA_s10383653-0022-00001-000001-01.nii",
+                    "labelmapvalue": 1,
+                    "groups": [
+                        {
+                            "name": "FOS",
+                            "options": {
+                                "min": -32000,
+                                "max": 32000,
+                                "bin": 32
+                            }
+                        }
+                    ],
+                    "groupPrefix": "phase_lca",
+                    "labelmap": "/data/MYDATA/TDCS/EROS_TDCS/Healthy/NC_sub14_20190117/BB_mask_NC_sub14_20190117LCA.nii"
+                },
+                {
+                    "image": "/data/MYDATA/TDCS/EROS_TDCS/Healthy/NC_sub14_20190117/PRE_LVA_PHA_s10383653-0028-00001-000001-01.nii",
+                    "labelmapvalue": 1,
+                    "groups": [
+                        {
+                            "name": "FOS",
+                            "options": {
+                                "min": -32000,
+                                "max": 32000,
+                                "bin": 32
+                            }
+                        }
+                    ],
+                    "groupPrefix": "phase_lva",
+                    "labelmap": "/data/MYDATA/TDCS/EROS_TDCS/Healthy/NC_sub14_20190117/BB_mask_NC_sub14_20190117LVA.nii"
+                },
+                {
+                    "image": "/data/MYDATA/TDCS/EROS_TDCS/Healthy/NC_sub14_20190117/PRE_RCA_PHA_s10383653-0025-00001-000001-01.nii",
+                    "labelmapvalue": 1,
+                    "groups": [
+                        {
+                            "name": "FOS",
+                            "options": {
+                                "min": -32000,
+                                "max": 32000,
+                                "bin": 32
+                            }
+                        }
+                    ],
+                    "groupPrefix": "phase_rca",
+                    "labelmap": "/data/MYDATA/TDCS/EROS_TDCS/Healthy/NC_sub14_20190117/BB_mask_NC_sub14_20190117RCA.nii"
+                },
+                {
+                    "image": "/data/MYDATA/TDCS/EROS_TDCS/Healthy/NC_sub14_20190117/PRE_RVA_PHA_s10383653-0031-00001-000001-01.nii",
+                    "labelmapvalue": 1,
+                    "groups": [
+                        {
+                            "name": "FOS",
+                            "options": {
+                                "min": -32000,
+                                "max": 32000,
+                                "bin": 32
+                            }
+                        }
+                    ],
+                    "groupPrefix": "phase_rva",
+                    "labelmap": "/data/MYDATA/TDCS/EROS_TDCS/Healthy/NC_sub14_20190117/BB_mask_NC_sub14_20190117RVA.nii"
+                },
+                {
+                    "image": "/data/MYDATA/TDCS/EROS_TDCS/Healthy/NC_sub14_20190117/PRE_LCA_MAG_s10383653-0021-00001-000001-01.nii",
+                    "labelmapvalue": 1,
+                    "groups": [
+                        {
+                            "name": "FOS",
+                            "options": {
+                                "min": 0,
+                                "max": 32000,
+                                "bin": 32
+                            }
+                        }
+                    ],
+                    "groupPrefix": "magnitude_lca",
+                    "labelmap": "/data/MYDATA/TDCS/EROS_TDCS/Healthy/NC_sub14_20190117/BB_mask_NC_sub14_20190117LCA.nii"
+                },
+                {
+                    "image": "/data/MYDATA/TDCS/EROS_TDCS/Healthy/NC_sub14_20190117/PRE_LVA_MAG_s10383653-0027-00001-000001-01.nii",
+                    "labelmapvalue": 1,
+                    "groups": [
+                        {
+                            "name": "FOS",
+                            "options": {
+                                "min": 0,
+                                "max": 32000,
+                                "bin": 32
+                            }
+                        }
+                    ],
+                    "groupPrefix": "magnitude_lva",
+                    "labelmap": "/data/MYDATA/TDCS/EROS_TDCS/Healthy/NC_sub14_20190117/BB_mask_NC_sub14_20190117LVA.nii"
+                },
+                {
+                    "image": "/data/MYDATA/TDCS/EROS_TDCS/Healthy/NC_sub14_20190117/PRE_RCA_MAG_s10383653-0024-00001-000001-01.nii",
+                    "labelmapvalue": 1,
+                    "groups": [
+                        {
+                            "name": "FOS",
+                            "options": {
+                                "min": 0,
+                                "max": 32000,
+                                "bin": 32
+                            }
+                        }
+                    ],
+                    "groupPrefix": "magnitude_rca",
+                    "labelmap": "/data/MYDATA/TDCS/EROS_TDCS/Healthy/NC_sub14_20190117/BB_mask_NC_sub14_20190117RCA.nii"
+                },
+                {
+                    "image": "/data/MYDATA/TDCS/EROS_TDCS/Healthy/NC_sub14_20190117/PRE_RVA_MAG_s10383653-0030-00001-000001-01.nii",
+                    "labelmapvalue": 1,
+                    "groups": [
+                        {
+                            "name": "FOS",
+                            "options": {
+                                "min": 0,
+                                "max": 32000,
+                                "bin": 32
+                            }
+                        }
+                    ],
+                    "groupPrefix": "magnitude_rva",
+                    "labelmap": "/data/MYDATA/TDCS/EROS_TDCS/Healthy/NC_sub14_20190117/BB_mask_NC_sub14_20190117RVA.nii"
+                }
+            ]
+        }
+    ]
+}

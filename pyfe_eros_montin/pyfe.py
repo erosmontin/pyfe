@@ -1,7 +1,11 @@
+from copy import deepcopy
 import ctypes
+import json
 
 import os
+import numpy
 from pynico_eros_montin import pynico as pn
+from pydaug_eros_montin import pydaug as pda
 
 class FE():
     def __init__(self,image=None,roi=None,roiv=None,PT=None,options=None) -> None:
@@ -194,11 +198,14 @@ class GLRLM(TEXTURES):
         
 
 import multiprocessing
-def exrtactMyFeatures(jf,dimension):
-    P=pn.Pathable(jf)
-    if not P.exists():
-        raise Exception("file do not exists")
-    L=P.readJson()
+def exrtactMyFeatures(jf,dimension,daug=0):
+    if isinstance(jf,str):
+        P=pn.Pathable(jf)
+        if not P.exists():
+            raise Exception("file do not exists")
+        L=P.readJson()
+    elif (isinstance(jf,dict)):
+        L=jf
     if dimension==3:
         f=theF3
     if dimension==2:
@@ -207,23 +214,88 @@ def exrtactMyFeatures(jf,dimension):
     with multiprocessing.Pool() as p:
         # result = p.map(theF3,(L["dataset"]))
         res = p.map(f,(L["dataset"]))
+    p.close()
     result=[]
     idx=[]
-    for r,id in res:
-        result.append(r)
-        idx.append(id)
+       
 
+    for r,id in res:
+        if (isinstance(id,list)):
+            for rr,idr in zip(r,id):
+                result.append(rr)
+                idx.append(idr)
+        else:
+            result.append(r)
+            idx.append(id)
     return result,idx
 
+import pandas as pd
+def exrtactMyFeaturesToPandas(jf,dimension,max_level=2,daug=0):
+    r,ind=exrtactMyFeatures(jf,dimension,daug)
+    X=pd.json_normalize(r,max_level=max_level)
+    X.index=ind
+    return X
+
+def pyfejsonFeaturesToPandas(xf,idf):
+    P=pn.Pathable(xf)
+    I=pn.Pathable(idf)
+    if P.exists():
+        X=pd.json_normalize(P.readJson(),max_level=2)
+        X.index=pd.json_normalize(I.readJson(),max_level=2)
+    return X
 
 def theF3(X):
     return theF(X,3)
 def theF2(X):
     return theF(X,2)
-
+from pyable_eros_montin import imaginable
+import numpy as np
+import SimpleITK as sitk
 def theF(X,d):
+    line=X["data"]
+    r=[]
+    ids=[]
+    r.append(computeRow(line,d))
+    ids.append(X["id"])
+    if X["augment"]:
+        aug=X["augment"]
+        for n in range(aug["n"]):
+
+            R=[ np.random.uniform(low=l, high=h, size=1)[0] for l,h in aug["options"]["r"]]
+            T=[ np.random.uniform(low=l, high=h, size=1)[0] for l,h in aug["options"]["t"]]
+            line2 =deepcopy(line)
+            G=pn.GarbageCollector()
+            for i,x in enumerate(line2):
+                im,roi=x["image"],x["labelmap"]
+                
+                IM=imaginable.SITKImaginable(filename=im)
+                ROI=imaginable.SITKImaginable(filename=roi)
+                IM.rotateImage(rotation=R,translation=T,interpolator=sitk.sitkBSpline)
+                ROI.rotateImage(rotation=R,translation=T,useNearestNeighborExtrapolator=True,interpolator=sitk.sitkNearestNeighbor)
+
+                pn.Pathable(im)
+                imn=pn.Pathable(im).changePathToOSTemporary().changeFileNameRandom()
+                roin=pn.Pathable(roi).changePathToOSTemporary().changeFileNameRandom()
+                G.throw(imn.getPosition())
+                G.throw(roin.getPosition())
+                IM.writeImageAs(imn.getPosition())
+                ROI.writeImageAs(roin.getPosition())
+                line2[i]["image"]=imn.getPosition()
+                line2[i]["labelmap"]=roin.getPosition()
+            r.append(computeRow(line2,d))
+
+            ids.append(f'{X["id"]}-aug{n:04}')
+
+
+
+
+    return r,ids
+
+    
+    
+def computeRow(line,d):
     out={}
-    for x in X["data"]:
+    for x in line:
         TD=[s["name"].lower() for s in x["groups"]]
         TDs=[s["options"] for s in x["groups"]]
         for a,o in zip(TD,TDs):
@@ -238,6 +310,7 @@ def theF(X,d):
 
             L.setImage(x["image"])
             L.setROI(x["labelmap"])
+
             L.setROIvalue(x["labelmapvalue"])
             L.setOptions(o)
             f=L.getFeatures()
@@ -247,7 +320,10 @@ def theF(X,d):
             if not (ft in out[x["groupPrefix"]].keys()):
                 out[x["groupPrefix"]][ft]={}
             out[x["groupPrefix"]][ft]= f[ft]
-    return out, X["id"]
+        
+
+    return out
+
 if __name__=="__main__":
     # P=pn.Pathable('/data/PERSONALPROJECTS/myPackages/pyfe/tests/data/data.json')
     # P=pn.Pathable('/data/MYDATA/TDCS/EROS_TDCS/_Hman.json')
@@ -265,24 +341,36 @@ if __name__=="__main__":
     # print(L.getFeatures())
 #    o,i=exrtactMyFeatures('/data/MYDATA/TDCS/EROS_TDCS/_Hman.json',2)
 
-    P=pn.Pathable('/data/MYDATA/TDCS/EROS_TDCS/Hman.json')
+    # P=pn.Pathable('/data/MYDATA/TDCS/EROS_TDCS/Hman.json')
 
-    o=P.readJson()
-    x=o["dataset"][0]["data"][5]
+    # o=P.readJson()
+    # x=o["dataset"][0]["data"][5]
 
 
 
-    L=GLCM(3)
-    L.setImage(x["image"])
-    L.setROI(x['labelmap'])
-    L.setROIvalue(x["labelmapvalue"])
-    L.setOptions(x["groups"][0]["options"])
-    L.getFeatures()
-    print(L.getFeatures())
+    # L=GLCM(3)
+    # L.setImage(x["image"])
+    # L.setROI(x['labelmap'])
+    # L.setROIvalue(x["labelmapvalue"])
+    # L.setOptions(x["groups"][0]["options"])
+    # L.getFeatures()
+    # print(L.getFeatures())
  
- 
-#  #  o,i=exrtactMyFeatures('/data/PERSONALPROJECTS/myPackages/pyfe/tests/data/data.json',3)
-#    o,i=exrtactMyFeatures('/data/MYDATA/TDCS/EROS_TDCS/Mman.json',2)
+    # MDj,dimension='/data/PERSONALPROJECTS/myPackages/pyfe/tests/data/data.json',3
+    MDj,dimension='/data/MYDATA/TDCS/EROS_TDCS/radiomic/Man/Hman.json',2
+ #  o,i=exrtactMyFeatures('/data/PERSONALPROJECTS/myPackages/pyfe/tests/data/data.json',3)
+    # P=pn.Pathable(MDj)
+    # o=P.readJson()
+    # x=o["dataset"][0]["data"][5]
+    # L=FOS(2)
+    # L.setImage(x["image"])
+    # L.setROI(x['labelmap'])
+    # L.setROIvalue(x["labelmapvalue"])
+    # L.setOptions(x["groups"][0]["options"])
+    # L.getFeatures()
+
+    p=exrtactMyFeaturesToPandas(MDj,dimension)
+    p.to_json('/data/tttt/a.json')
 
 #    print(i)
 #    P=pn.Pathable('/data/tttt/a.json')
