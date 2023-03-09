@@ -143,6 +143,7 @@ class Learner:
 
     def addSubset(self,name,cols=None,icols=None,like=None,reducedSubset=True):
         
+
         SS={"name":name,"indexes":[]}
         if icols:
             if isinstance(icols,int):
@@ -174,6 +175,7 @@ class Learner:
         if (len(SS["indexes"])>0):
             self.Subsets.push(SS)
             if reducedSubset:
+                
                 nn=selectSubsetClassif(self.X.iloc[:,SS["indexes"]],self.Y,train_ratio=self.selectKBesttrainsplit,nr=self.selectKBestReplicas,n=self.selectKBestNumber)
                 SS2={"indexes":[SS["indexes"][x] for x in nn],"name":f"{name}_subset{self.selectKBestNumber}"}
                 if (len(SS2["indexes"])>0):
@@ -196,17 +198,18 @@ def splitPandasDataset(dataX,dataY,train_ratio = 0.75):
     L=x_train.index
     LT=x_test.index
 
-    for a in L:
-        x=dataX.filter(like=a+'-aug',axis=0)
-        y=dataY.filter(like=a+'-aug',axis=0)
-        x_train=pd.concat([x_train,x])
-        y_train=pd.concat([y_train,y])
-    
-    for a in LT:
-        x=dataX.filter(like=a+'-aug',axis=0)
-        y=dataY.filter(like=a+'-aug',axis=0)
-        x_test=pd.concat([x_test,x])
-        y_test=pd.concat([y_test,y])
+    if len(l)>0: # if the dataset is augmnted
+        for a in L:
+            x=dataX.filter(like=a+'-aug',axis=0)
+            y=dataY.filter(like=a+'-aug',axis=0)
+            x_train=pd.concat([x_train,x])
+            y_train=pd.concat([y_train,y])
+        
+        for a in LT:
+            x=dataX.filter(like=a+'-aug',axis=0)
+            y=dataY.filter(like=a+'-aug',axis=0)
+            x_test=pd.concat([x_test,x])
+            y_test=pd.concat([y_test,y])
 
 
     return x_train,y_train, x_test, y_test
@@ -333,66 +336,208 @@ def testDataACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None):
             pass
 
     return out
+from sklearn.metrics import mean_squared_error, r2_score
+def testRegressorACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None):
+    out={"test":{"error":[], "r2":[], "score":[]},
+        "validation":{"error":[], "r2":[], "score":[]},
+        "model":None,"model_number":[],"features":list(X.columns),"name":name}
+
+  
+    if(Xval is not None):
+        VAL=True
+        Xva=pd.DataFrame(StandardScaler().fit_transform(Xval).copy())
+        Xva=Xva.fillna(0)
+
+    errOut=np.inf
+    for pp in range(replicas):
+        Xtr,Ytr,Xte,Ytest=splitPandasDataset(X.copy(),Y.copy(),0.75)
+        SC=StandardScaler()
+        SC.fit(Xtr)
+        Xtr=pd.DataFrame(StandardScaler().fit_transform(Xtr))
+        Xte=pd.DataFrame(StandardScaler().fit_transform(Xte))
+        Xte=Xte.fillna(0)
+        Xtr=Xtr.fillna(0)
+        ml.fit(Xtr.to_numpy(), Ytr.to_numpy().flatten())
+        Yhat=ml.predict(Xte.to_numpy())
+
+        try:
+            score=ml.score(Xte.to_numpy(),Ytest.to_numpy().flatten())
+            err=mean_squared_error(Ytest.to_numpy().flatten(),Yhat.flatten())
+            r2=r2_score(Ytest.to_numpy().flatten(),Yhat.flatten())
+            out["test"]["error"].append(err)
+            out["test"]["r2"].append(r2)
+            out["validation"]["score"].append(score)
+            if err<errOut:
+                errOut=err
+                out["model"]=deepcopy(ml)
+                out["model_number"].append(pp)
+
+
+                if VAL:
+                    try:
+                        Yhval=out["model"].predict(Xva.to_numpy())
+                        score=ml.score(Xva.to_numpy(),Yval.to_numpy().flatten())
+                        err=mean_squared_error(Yval.to_numpy().flatten(), Yhval.flatten())
+                        r2=r2_score(Yval.to_numpy().flatten(), Yhval.flatten())
+                        
+                        out["validation"]["error"].append(err)
+                        out["validation"]["r2"].append(r2)
+                        out["validation"]["score"].append(score)
+            
+                    except:
+                        pass
+
+            
+        except:
+            pass
+
+    return out
+class Regressor(Learner):
+    def __init__(self, x=None, y=None) -> None:
+        super().__init__(x, y)
+        self.SubsetsResults=pd.DataFrame(columns=["error","r2","score","nfeatures"])
+    def __calc__(self,a):
+        x=self.X.iloc[:,a["indexes"]]
+        xtr,ytr, xte,yte = splitPandasDataset(x,self.Y,self.trainingSplit)
+        return testRegressorACC(xtr,ytr,ml = self.ml,replicas=self.trainingReplicas,Xval=xte,Yval=yte,name=a["name"])
+    def calculate(self):
+        while (self.Subsets.size()>0):
+            
+            a=self.Subsets.pop()
+            self.tmpSubsets.push(a)
+            print(f"calculating subset {a['name']}")
+            P=[a]*self.validationReplicas
+            with multiprocessing.Pool() as pp:
+                O=pp.map(self.__calc__,P)
+            for i,on in enumerate(O):
+                if i==0:
+                    o=on
+                    o["model"]=[o["model"]]
+                else:
+                    o["validation"]["error"]+=on["validation"]["error"]
+                    o["validation"]["r2"]+=on["validation"]["r2"]
+                    o["validation"]["score"]+=on["validation"]["score"]
+                    o["model"].append(on["model"])
+                                
+            L=pn.Pathable(self.resultFile)
+            L.changeBaseName(f"{a['name']}.pkl")
+            L.writePkl([o])
+            H=[np.mean(o["validation"]["error"]), np.mean(o["validation"]["r2"]),np.mean(o["validation"]["score"]),len(o["features"])]
+            p=pd.DataFrame.from_dict({o["name"]:H},orient='index')
+            p.columns=["error", "r2","score","nfeatures"]
+            self.SubsetsResults=pd.concat([self.SubsetsResults,p])
+    def writeSubsetsFeaturesName(self,n=None):
+        if n==None:
+            n=0
+        P=pn.Pathable(self.resultFile)
+        if self.Subsets.size()>0:
+            tmp=deepcopy(self.Subsets)
+        else:
+            tmp=deepcopy(self.tmpSubsets)
+        
+        f1=self.X.filter(self.Y[self.Y.iloc[:,n]==1].index,axis=0)
+        f0=self.X.filter(self.Y[self.Y.iloc[:,n]==0].index,axis=0)
+        while (tmp.size()>0):
+            a=tmp.pop()
+            with open(P.changeBaseName(f'feartures{a["name"]}.txt').getPosition(),'w') as d:
+                d.write('feature,p,mean Healthy,mean MS\n')
+                for f in self.getFeaturesName(s=a):
+                    p,m0,m1=evaluateFeatures2(f0[f].to_numpy().squeeze(),f1[f].to_numpy().squeeze())
+                    d.write(f'{f},{p},{m0},{m1}\n')
+            d.close()
+            P.undo()
+    def addSubset(self,name,cols=None,icols=None,like=None,reducedSubset=True):
+        super().addSubset(self,name,cols=None,icols=None,like=None,reducedSubset=True)
+
 if __name__=="__main__":
-    L=Learner()
-    # L.setXfromMyfeJson('/data/tttt/a.json','/data/tttt/ai.json',2)
-    # print(L.X.index)
-    PT='/data/MYDATA/TDCS/EROS_TDCS/radiomic/BB4/'
-    L.setX(PT+'dataframeXaug.json')
+    # L=Learner()
+    # # L.setXfromMyfeJson('/data/tttt/a.json','/data/tttt/ai.json',2)
+    # # print(L.X.index)
+    # PT='/data/MYDATA/TDCS/EROS_TDCS/radiomic/BB4/'
+    # L.setX(PT+'dataframeXaug.json')
     
-    Y=pd.DataFrame([ 1 for a in  L.X.filter(like ='MS',axis=0).index], index=L.X.filter(like ='MS',axis=0).index,columns=["MS"])
-    Y=pd.concat([Y,pd.DataFrame([ 0 for a in  L.X.filter(like ='NC',axis=0).index], index=L.X.filter(like ='NC',axis=0).index,columns=["MS"])])
+    # Y=pd.DataFrame([ 1 for a in  L.X.filter(like ='MS',axis=0).index], index=L.X.filter(like ='MS',axis=0).index,columns=["MS"])
+    # Y=pd.concat([Y,pd.DataFrame([ 0 for a in  L.X.filter(like ='NC',axis=0).index], index=L.X.filter(like ='NC',axis=0).index,columns=["MS"])])
+    # L.setY(Y)
+    # L.selectKBestNumber=10
+    # L.selectKBestReplicas=100
+    # L.trainingReplicas=100
+    # L.validationReplicas=20
+    # P= pn.Pathable(PT+'/results_10/results.csv')
+    # P.ensureDirectoryExistence()
+    # L.resultFile=P.getPosition()
+    # L.addSubset(like="FOS.Signal",name="FOSSignal")
+    # L.addSubset(like="FOS.Histogram",name="FOSHistogram")
+    # L.addSubset(like="FOS",name="FOS")
+    # L.addSubsetFull("All")
+    # L.addSubset(like="GLCM",name="GLCM")
+    # L.addSubset(like="GLRLM",name="GLRLM")
+    # L.addSubset(like="GL",name="Texture")
+    # L.addSubset(like="_lca.",name="LCA")
+    # L.addSubset(like="lca.FOS",name="LCAFOS")
+    # L.addSubset(like="lca.GLCM",name="LCAGLCM")
+    # L.addSubset(like="lca.GLRLM",name="LCAGLRLM")
+    # L.addSubset(like="lca.GL",name="LCATexture")
+    # L.addSubset(like="lva.FOS",name="LVAFOS")
+    # L.addSubset(like="lva.GLCM",name="LVAGLCM")
+    # L.addSubset(like="lva.GLRLM",name="LVAGLRLM")
+    # L.addSubset(like="lva.GL",name="LVATexture")
+    # L.addSubset(like="rca.FOS",name="RCAFOS")
+    # L.addSubset(like="rca.GLCM",name="RCAGLCM")
+    # L.addSubset(like="rca.GLRLM",name="RCAGLRLM")
+    # L.addSubset(like="rca.GL",name="RCAGTextureM")
+    # L.addSubset(like="rva.FOS",name="RVAFOS")
+    # L.addSubset(like="rva.GLCM",name="RVAGLCM")
+    # L.addSubset(like="rva.GLRLM",name="RVAGLRLM")
+    # L.addSubset(like="rva.GL",name="RVATexture")
+    # L.addSubset(like="_lva.",name="LVA")
+    # L.addSubset(like="_rca.",name="RCA")
+    # L.addSubset(like="_rva.",name="RVA")    
+    # L.addSubset(like="magnitude",name="magnitude")
+    # L.addSubset(like="phase",name="phase")
+    # L.addSubset(like="phase_lva",name="phase_lva")
+    # L.addSubset(like="phase_lca",name="phase_lca")
+    # L.addSubset(like="phase_rca",name="phase_rca")
+    # L.addSubset(like="phase_rva",name="phase_rva")
+    # L.addSubset(like="magnitude_lva",name="magnitude_lva")
+    # L.addSubset(like="magnitude_lca",name="magnitude_lca")
+    # L.addSubset(like="magnitude_rca",name="magnitude_rca")
+    # L.addSubset(like="magnitude_rva",name="magnitude_rva")
+    from sklearn.linear_model import LinearRegression
+
+    L=Regressor()
+    L.ml=LinearRegression()
+    L.setX('/data/MYDATA/ISMRM23/Aging/dataframeX_2.json')
+    PP=pn.Pathable('Aging_Study.txt')
+    J=pn.Pathable('/data/MYDATA/ISMRM23/Aging/Aging_Study.txt')
+    K=J.readJson()
+    Y = pd.DataFrame(columns=["age"],index=L.X.index)
+    for t in K:
+        Y.loc[t['name']]=t['age']
+
+
+    L.selectKBestNumber=30
+    L.selectKBestReplicas=10
+    L.trainingReplicas=30
+    L.validationReplicas=5
+    L.trainingSplit=0.9
     L.setY(Y)
-    L.selectKBestNumber=10
-    L.selectKBestReplicas=100
-    L.trainingReplicas=100
-    L.validationReplicas=20
-    P= pn.Pathable(PT+'/results_10/results.csv')
-    P.ensureDirectoryExistence()
-    L.resultFile=P.getPosition()
-    L.addSubset(like="FOS.Signal",name="FOSSignal")
-    L.addSubset(like="FOS.Histogram",name="FOSHistogram")
+    L.addSubsetFull('ALL')
+
+    L.addSubset(like="T1",name="T1")
+    L.addSubset(like="T2",name="T2")
     L.addSubset(like="FOS",name="FOS")
-    L.addSubsetFull("All")
-    L.addSubset(like="GLCM",name="GLCM")
-    L.addSubset(like="GLRLM",name="GLRLM")
-    L.addSubset(like="GL",name="Texture")
-    L.addSubset(like="_lca.",name="LCA")
-    L.addSubset(like="lca.FOS",name="LCAFOS")
-    L.addSubset(like="lca.GLCM",name="LCAGLCM")
-    L.addSubset(like="lca.GLRLM",name="LCAGLRLM")
-    L.addSubset(like="lca.GL",name="LCATexture")
-    L.addSubset(like="lva.FOS",name="LVAFOS")
-    L.addSubset(like="lva.GLCM",name="LVAGLCM")
-    L.addSubset(like="lva.GLRLM",name="LVAGLRLM")
-    L.addSubset(like="lva.GL",name="LVATexture")
-    L.addSubset(like="rca.FOS",name="RCAFOS")
-    L.addSubset(like="rca.GLCM",name="RCAGLCM")
-    L.addSubset(like="rca.GLRLM",name="RCAGLRLM")
-    L.addSubset(like="rca.GL",name="RCAGTextureM")
-    L.addSubset(like="rva.FOS",name="RVAFOS")
-    L.addSubset(like="rva.GLCM",name="RVAGLCM")
-    L.addSubset(like="rva.GLRLM",name="RVAGLRLM")
-    L.addSubset(like="rva.GL",name="RVATexture")
-    L.addSubset(like="_lva.",name="LVA")
-    L.addSubset(like="_rca.",name="RCA")
-    L.addSubset(like="_rva.",name="RVA")    
-    L.addSubset(like="magnitude",name="magnitude")
-    L.addSubset(like="phase",name="phase")
-    L.addSubset(like="phase_lva",name="phase_lva")
-    L.addSubset(like="phase_lca",name="phase_lca")
-    L.addSubset(like="phase_rca",name="phase_rca")
-    L.addSubset(like="phase_rva",name="phase_rva")
-    L.addSubset(like="magnitude_lva",name="magnitude_lva")
-    L.addSubset(like="magnitude_lca",name="magnitude_lca")
-    L.addSubset(like="magnitude_rca",name="magnitude_rca")
-    L.addSubset(like="magnitude_rva",name="magnitude_rva")
+    L.addSubset(like="SS",name="SS")
+    L.addSubset(like="Caudate",name="Caudate")
+    L.addSubset(like="Hippocampus",name="Hippocampus")
+    L.addSubset(like="Putamen",name="Putamen")
 
+    P= pn.Pathable('results.csv')
+    L.resultFile=P.getPosition()
+    L.calculate()
 
-    print(L.calculate())
 
     L.saveResults()
-    L.writeSubsetsFeaturesName()
    
 
 # from pynico_eros_montin import pynico as pn

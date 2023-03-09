@@ -257,7 +257,8 @@ def theF(X,d):
     ids=[]
     r.append(computeRow(line,d))
     ids.append(X["id"])
-    if X["augment"]:
+
+    if "augment" in X.keys():
         aug=X["augment"]
         for n in range(aug["n"]):
 
@@ -324,6 +325,7 @@ def computeRow(line,d):
 
     return out
 
+
 if __name__=="__main__":
     # P=pn.Pathable('/data/PERSONALPROJECTS/myPackages/pyfe/tests/data/data.json')
     # P=pn.Pathable('/data/MYDATA/TDCS/EROS_TDCS/_Hman.json')
@@ -357,7 +359,8 @@ if __name__=="__main__":
     # print(L.getFeatures())
  
     # MDj,dimension='/data/PERSONALPROJECTS/myPackages/pyfe/tests/data/data.json',3
-    MDj,dimension='/data/MYDATA/TDCS/EROS_TDCS/radiomic/Man/Hman.json',2
+    # MDj,dimension='/data/MYDATA/TDCS/EROS_TDCS/radiomic/Man/Hman.json',2
+    MDj,dimension='/g/a.json',3
  #  o,i=exrtactMyFeatures('/data/PERSONALPROJECTS/myPackages/pyfe/tests/data/data.json',3)
     # P=pn.Pathable(MDj)
     # o=P.readJson()
@@ -370,7 +373,7 @@ if __name__=="__main__":
     # L.getFeatures()
 
     p=exrtactMyFeaturesToPandas(MDj,dimension)
-    p.to_json('/data/tttt/a.json')
+    p.to_json('/R.json')
 
 #    print(i)
 #    P=pn.Pathable('/data/tttt/a.json')
