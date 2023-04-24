@@ -5,6 +5,7 @@ import json
 import os
 import numpy
 from pynico_eros_montin import pynico as pn
+
 from pydaug_eros_montin import pydaug as pda
 
 class FE():
@@ -270,7 +271,7 @@ def theF(X,d):
                 im,roi=x["image"],x["labelmap"]
                 
                 IM=imaginable.SITKImaginable(filename=im)
-                ROI=imaginable.SITKImaginable(filename=roi)
+                ROI=imaginable.Roiable(filename=roi)
                 IM.rotateImage(rotation=R,translation=T,interpolator=sitk.sitkBSpline)
                 ROI.rotateImage(rotation=R,translation=T,useNearestNeighborExtrapolator=True,interpolator=sitk.sitkNearestNeighbor)
 
@@ -360,27 +361,25 @@ if __name__=="__main__":
  
     # MDj,dimension='/data/PERSONALPROJECTS/myPackages/pyfe/tests/data/data.json',3
     # MDj,dimension='/data/MYDATA/TDCS/EROS_TDCS/radiomic/Man/Hman.json',2
-    MDj,dimension='/g/a.json',3
- #  o,i=exrtactMyFeatures('/data/PERSONALPROJECTS/myPackages/pyfe/tests/data/data.json',3)
-    # P=pn.Pathable(MDj)
-    # o=P.readJson()
-    # x=o["dataset"][0]["data"][5]
-    # L=FOS(2)
-    # L.setImage(x["image"])
-    # L.setROI(x['labelmap'])
-    # L.setROIvalue(x["labelmapvalue"])
-    # L.setOptions(x["groups"][0]["options"])
-    # L.getFeatures()
-
-    p=exrtactMyFeaturesToPandas(MDj,dimension)
-    p.to_json('/R.json')
+    # MDj,dimension='/data/MYDATA/ANO-INT/feNormalizedMuscle.json',3
+    # p=exrtactMyFeaturesToPandas(MDj,dimension)
+    # p.to_json('/data/MYDATA/ANO-INT/extraction_Muscle.json')
 
 #    print(i)
 #    P=pn.Pathable('/data/tttt/a.json')
 #    P.writeJson(o)
 #    P=pn.Pathable('/data/tttt/ai.json')
 #    P.writeJson(i)
+    # MDj,dimension='/data/MYDATA/ANO-INT/feNormalizedMax.json',3
 
+    # p=exrtactMyFeaturesToPandas(MDj,dimension)
+    # p.to_json('/data/MYDATA/ANO-INT/extraction_Max.json')
+
+
+    MDj,dimension='/data/MYDATA/ANO-INT/feOriginal_1500.json',3
+
+    p=exrtactMyFeaturesToPandas(MDj,dimension)
+    p.to_json('/data/MYDATA/ANO-INT/extraction_Original1500.json')
 
 
     # A=GLCM(3)
