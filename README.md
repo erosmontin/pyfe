@@ -1,10 +1,10 @@
-# pydaug
-Data AUGmentation made it easy,
+# pyFe
+Features extraction and machine learning 
 
 ## installation
 1. install this package
-1. copile [daug](https://www.githu.com/erosmontin/pynico)
-1. copy daug into your daug conva env in bld directory
+1. compile [Features Extractor](https://github.com/erosmontin/FeaturesExtractor)
+1. copy bld directory in the libnrary path
 1. install [pynico](https://www.githu.com/erosmontin/pynico) or ask [Eros](eros.montin@gmail.com)
 
 ## example use

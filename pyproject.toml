@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling","sklearn","pandas","numpy"]
+requires = ["hatchling","scikit-learn","pandas","numpy"]
 build-backend = "hatchling.build"
 
 

@@ -3,6 +3,8 @@ from pynico_eros_montin import pynico as pn
 import pandas as pd
 from sklearn.neighbors import KNeighborsClassifier
 from copy import deepcopy
+from sklearn.feature_selection import f_oneway
+
 
 def setPandasDataFrame(fn):
     if (isinstance(fn,str)):
@@ -22,6 +24,7 @@ class Learner:
         
         self.validationReplicas=10
         self.ml=KNeighborsClassifier(3)
+        self.fs=f_oneway
         if x:
             self.X=x
         else:
@@ -116,32 +119,54 @@ class Learner:
             for i,on in enumerate(O):
                 if i==0:
                     o=on
-                    o["model"]=[o["model"]]
+                    try:
+                        o["validation"]["sensitivity"]=[on["validation"]["sensitivity"][-1]]
+                        o["validation"]["specificity"]=[on["validation"]["specificity"][-1]]
+                        o["validation"]["auc"]=[on["validation"]["auc"][-1]]
+                        o["validation"]["accuracy"]=[on["validation"]["accuracy"][-1]]
+                        o["validation"]["accuracy"]=[on["validation"]["accuracy"][-1]]
+                        o["model"]=[o["model"]]
+                    except:
+                        o["validation"]["sensitivity"]=[on["validation"]["sensitivity"][0]]
+                        o["validation"]["specificity"]=[on["validation"]["specificity"][0]]
+                        o["validation"]["auc"]=[on["validation"]["auc"][0]]
+                        o["validation"]["accuracy"]=[on["validation"]["accuracy"][0]]
+                        o["validation"]["accuracy"]=[on["validation"]["accuracy"][0]]
+                        o["model"]=[o["model"]]
+
                 else:
-                    o["validation"]["sensitivity"]+=on["validation"]["sensitivity"]
-                    o["validation"]["specificity"]+=on["validation"]["specificity"]
-                    o["validation"]["auc"]+=on["validation"]["auc"]
-                    o["validation"]["accuracy"]+=on["validation"]["accuracy"]
-                    o["validation"]["accuracy"]+=on["validation"]["accuracy"]
+                    try:
+                        o["validation"]["sensitivity"]+=on["validation"]["sensitivity"][-1]
+                        o["validation"]["specificity"]+=on["validation"]["specificity"][-1]
+                        o["validation"]["auc"]+=on["validation"]["auc"][-1]
+                        o["validation"]["accuracy"]+=on["validation"]["accuracy"][-1]
+                        o["validation"]["accuracy"]+=on["validation"]["accuracy"][-1]
+                    except:
+                        o["validation"]["sensitivity"]=[on["validation"]["sensitivity"][0]]
+                        o["validation"]["specificity"]=[on["validation"]["specificity"][0]]
+                        o["validation"]["auc"]=[on["validation"]["auc"][0]]
+                        o["validation"]["accuracy"]=[on["validation"]["accuracy"][0]]
+                        o["validation"]["accuracy"]=[on["validation"]["accuracy"][0]]
+
                     o["model"].append(on["model"])
                                 
             L=pn.Pathable(self.resultFile)
             L.changeBaseName(f"{a['name']}.pkl")
             L.writePkl([o])
-            H=[np.mean(o["validation"]["sensitivity"]), np.mean(o["validation"]["specificity"]),np.mean(o["validation"]["accuracy"]),np.mean(o["validation"]["auc"]),len(o["features"])]
+            H=[np.mean(o["validation"]["sensitivity"]), np.mean(o["validation"]["specificity"]),np.mean(o["validation"]["accuracy"]),np.mean(o["validation"]["auc"]),np.std(o["validation"]["sensitivity"]), np.std(o["validation"]["specificity"]),np.std(o["validation"]["accuracy"]),np.std(o["validation"]["auc"]),len(o["features"])]
             p=pd.DataFrame.from_dict({o["name"]:H},orient='index')
-            p.columns=["sensitivity", "specificity","accuracy","auc","nfeatures"]
+            p.columns=["sensitivity", "specificity","accuracy","auc","STDsensitivity", "STDspecificity","STDaccuracy","STDauc","nfeatures"]
             self.SubsetsResults=pd.concat([self.SubsetsResults,p])
     def getSubset(self):
         return self.Subsets.peek()
-    def addSubsetFull(self,name):
+    def addSubsetFull(self,name,common=False):
         try:
-            self.addSubset(name,cols=list(self.X.columns))
+            self.addSubset(name,cols=list(self.X.columns),common=common)
         except:
             raise Exception("can't add 'All' subset!!")
 
 
-    def addSubset(self,name,cols=None,icols=None,like=None,reducedSubset=True):
+    def addSubset(self,name,cols=None,icols=None,like=None,reducedSubset=True,common=False):
         
 
         SS={"name":name,"indexes":[]}
@@ -173,12 +198,27 @@ class Learner:
                     
         
         if (len(SS["indexes"])>0):
+            if common:
+                try:
+                    LL=[self.X.columns.get_loc(c) for c in list(self.X.filter(like="common").columns)]
+                except:
+                    pass
+                for l2 in LL:
+                    SS["indexes"].append(l2)
+
             self.Subsets.push(SS)
             if reducedSubset:
                 
-                nn=selectSubsetClassif(self.X.iloc[:,SS["indexes"]],self.Y,train_ratio=self.selectKBesttrainsplit,nr=self.selectKBestReplicas,n=self.selectKBestNumber)
+                nn=selectSubsetClassif(self.X.iloc[:,SS["indexes"]],self.Y,train_ratio=self.selectKBesttrainsplit,nr=self.selectKBestReplicas,n=self.selectKBestNumber,thetype=self.fs)
                 SS2={"indexes":[SS["indexes"][x] for x in nn],"name":f"{name}_subset{self.selectKBestNumber}"}
                 if (len(SS2["indexes"])>0):
+                    if common:
+                        try:
+                            LL=[self.X.columns.get_loc(c) for c in list(self.X.filter(like="common").columns)]
+                        except:
+                            pass
+                        for l2 in LL:
+                            SS2["indexes"].append(l2)
                     self.Subsets.push(SS2)
 
 
@@ -216,10 +256,44 @@ def splitPandasDataset(dataX,dataY,train_ratio = 0.75):
 
 
 
+from sklearn.feature_selection import SequentialFeatureSelector
+import numpy as np
+sfs=SequentialFeatureSelector(KNeighborsClassifier(3), n_features_to_select=6)
+from sklearn.preprocessing import StandardScaler
+
+
+
+
+def sfs(X,Y,training_split=0.8,NF=6,NR=5,direction="backward",ml=KNeighborsClassifier(3)):
+    K={}
+    for aa in range(NR):
+        tx,ty,*_=splitPandasDataset(X,Y,train_ratio=training_split)
+        Xva=pd.DataFrame(StandardScaler().fit_transform(tx).copy())
+        Xva=Xva.fillna(0)
+        sfs=SequentialFeatureSelector(ml, n_features_to_select=NF,direction=direction)
+        fit = sfs.fit(Xva.to_numpy(), ty.to_numpy().squeeze())
+        features = fit.transform(np.linspace(0,len(tx.columns)-1,len(tx.columns),dtype=int).reshape(1,-1))
+        for f in features[0]:
+            if f in K.keys():
+                K[f]+=1
+            else:
+                K[f]=1
+        print(K)
+    L= [ list(K.keys())[i] for i in np.array(list(K.values())).argsort()[::-1]]
+    if NF:
+        return L[0:NF]
+    else:
+        return L
+
+
+def forwardSequentialFeatureSelector(X,Y,training_split=0.8,NF=6,NR=5,ml=KNeighborsClassifier(3)):
+    return sfs(X,Y,training_split=training_split,NF=NF,NR=NF,direction="forward")
+
+def backwardSequentialFeatureSelector(X,Y,training_split=0.8,NF=6,NR=5,ml=KNeighborsClassifier(3)):
+    return sfs(X,Y,training_split=training_split,NF=NF,NR=NF,direction="backward")
 
 
 from sklearn.feature_selection import SelectKBest
-from sklearn.feature_selection import f_oneway
 
 import numpy as np
 
@@ -266,6 +340,10 @@ from sklearn.metrics import confusion_matrix, roc_auc_score
 
 def testPrediction(Ygt,Yhat):
     tn_, fp_, fn_, tp_ = confusion_matrix(Ygt.flatten(), Yhat.flatten()).ravel()
+    tp_=float(tp_)
+    tn_=float(tn_)
+    fn_=float(fn_)
+    fp_=float(fp_)
     tacc=(tp_+tn_)/(tp_+tn_+fn_+fp_)
     o={"accuracy":tacc,
     "specificity":( tn_ /(tn_+fp_)),
@@ -289,7 +367,7 @@ def testDataACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None):
 
     accOut=0
     for pp in range(replicas):
-        Xtr,Ytr,Xte,Ytest=splitPandasDataset(X.copy(),Y.copy(),0.75)
+        Xtr,Ytr,Xte,Ytest=splitPandasDataset(X.copy(),Y.copy(),0.8)
         SC=StandardScaler()
         SC.fit(Xtr)
         Xtr=pd.DataFrame(StandardScaler().fit_transform(Xtr))
@@ -309,7 +387,7 @@ def testDataACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None):
             out["test"]["fp"].append(ot["fp"])
             out["test"]["fn"].append(ot["fn"])
             out["test"]["auc"].append(ot["auc"])            
-            if tacc>accOut:
+            if tacc>accOut+1e-5:
                 accOut=tacc
                 out["model"]=deepcopy(ml)
                 out["model_number"].append(pp)
@@ -520,7 +598,7 @@ if __name__=="__main__":
     L.selectKBestReplicas=10
     L.trainingReplicas=30
     L.validationReplicas=5
-    L.trainingSplit=0.9
+    L.trainingSplit=0.75
     L.setY(Y)
     L.addSubsetFull('ALL')
 

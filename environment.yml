@@ -1,5 +1,5 @@
 
-name: me
+name: fe
 channels:
 #  - postelrich
   - conda-forge
@@ -13,12 +13,6 @@ dependencies:
   - scipy
   - scikit-learn
   - pip
-#  - pip
-#  - pip:
-#    - yahoo_fin
-#    - yfinance
-#    - yahoo-finance
-#    - fix-yahoo-finance
 # conda env create -f environment.yml
 # activate and ->conda env update --file local.yml --prune
 #or
