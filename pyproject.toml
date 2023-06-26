@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling","scikit-learn","pandas","numpy"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 
@@ -17,7 +17,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-
+#dependencies=[,"scikit-learn","pandas","numpy"]
 [project.urls]
 "Homepage" = "https://github.com/erosmontin/pyfe"
 "Bug Tracker" = "https://github.com/erosmontin/pyfe/issues"

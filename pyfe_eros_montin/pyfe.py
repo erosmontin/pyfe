@@ -211,7 +211,7 @@ def exrtactMyFeatures(jf,dimension,daug=0):
         f=theF3
     if dimension==2:
         f=theF2
-
+    theF(L["dataset"])
     with multiprocessing.Pool() as p:
         # result = p.map(theF3,(L["dataset"]))
         res = p.map(f,(L["dataset"]))
@@ -233,6 +233,7 @@ def exrtactMyFeatures(jf,dimension,daug=0):
 import pandas as pd
 def exrtactMyFeaturesToPandas(jf,dimension,max_level=2,daug=0):
     r,ind=exrtactMyFeatures(jf,dimension,daug)
+    print("normalizing")
     X=pd.json_normalize(r,max_level=max_level)
     X.index=ind
     return X
@@ -269,7 +270,7 @@ def theF(X,d):
             G=pn.GarbageCollector()
             for i,x in enumerate(line2):
                 im,roi=x["image"],x["labelmap"]
-                
+                print("----------",im,roi)
                 IM=imaginable.SITKImaginable(filename=im)
                 ROI=imaginable.Roiable(filename=roi)
                 IM.rotateImage(rotation=R,translation=T,interpolator=sitk.sitkBSpline)
@@ -342,7 +343,7 @@ if __name__=="__main__":
     # L.setOptions(x["settings"])
     # L.getFeatures()
     # print(L.getFeatures())
-#    o,i=exrtactMyFeatures('/data/MYDATA/TDCS/EROS_TDCS/_Hman.json',2)
+   o,i=exrtactMyFeatures('/data/PROJECTS/marcoMS/RadiomicsAppliedtoPhaseContrast/link_NEWDATASET_TDCS/radiomic/Man/dataframeXaug.json',2)
 
     # P=pn.Pathable('/data/MYDATA/TDCS/EROS_TDCS/Hman.json')
 
@@ -376,10 +377,10 @@ if __name__=="__main__":
     # p.to_json('/data/MYDATA/ANO-INT/extraction_Max.json')
 
 
-    MDj,dimension='/data/MYDATA/ANO-INT/feOriginal_1500.json',3
+    # MDj,dimension='/data/MYDATA/ANO-INT/feOriginal_1500.json',3
 
-    p=exrtactMyFeaturesToPandas(MDj,dimension)
-    p.to_json('/data/MYDATA/ANO-INT/extraction_Original1500.json')
+    # p=exrtactMyFeaturesToPandas(MDj,dimension)
+    # p.to_json('/data/MYDATA/ANO-INT/extraction_Original1500.json')
 
 
     # A=GLCM(3)

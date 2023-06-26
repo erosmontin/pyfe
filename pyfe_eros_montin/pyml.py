@@ -109,52 +109,32 @@ class Learner:
         
     def calculate(self):
         while (self.Subsets.size()>0):
-            
+            # take the subsets element
             a=self.Subsets.pop()
+            #{'indexes': [143, 224, 147], 'name': 'FOSSignal_subset3'}
             self.tmpSubsets.push(a)
             print(f"calculating subset {a['name']}")
-            P=[a]*self.validationReplicas
-            with multiprocessing.Pool() as pp:
-                O=pp.map(self.__calc__,P)
-            for i,on in enumerate(O):
+            # O=self.__calc__(a) ##TODO change for debug
+            # P=[a]*self.validationReplicas
+            # with multiprocessing.Pool() as pp:
+                # O=pp.map(self.__calc__,P)
+            O=[]
+            for i in range(self.validationReplicas):
+                on=self.__calc__(a)            
+                O.append(on)
                 if i==0:
-                    o=on
-                    try:
-                        o["validation"]["sensitivity"]=[on["validation"]["sensitivity"][-1]]
-                        o["validation"]["specificity"]=[on["validation"]["specificity"][-1]]
-                        o["validation"]["auc"]=[on["validation"]["auc"][-1]]
-                        o["validation"]["accuracy"]=[on["validation"]["accuracy"][-1]]
-                        o["validation"]["accuracy"]=[on["validation"]["accuracy"][-1]]
-                        o["model"]=[o["model"]]
-                    except:
-                        o["validation"]["sensitivity"]=[on["validation"]["sensitivity"][0]]
-                        o["validation"]["specificity"]=[on["validation"]["specificity"][0]]
-                        o["validation"]["auc"]=[on["validation"]["auc"][0]]
-                        o["validation"]["accuracy"]=[on["validation"]["accuracy"][0]]
-                        o["validation"]["accuracy"]=[on["validation"]["accuracy"][0]]
-                        o["model"]=[o["model"]]
-
+                    report={}
+                    for k in on["validation"].keys():
+                        report[k]=[on["validation"][k][-1]]
                 else:
-                    try:
-                        o["validation"]["sensitivity"]+=on["validation"]["sensitivity"][-1]
-                        o["validation"]["specificity"]+=on["validation"]["specificity"][-1]
-                        o["validation"]["auc"]+=on["validation"]["auc"][-1]
-                        o["validation"]["accuracy"]+=on["validation"]["accuracy"][-1]
-                        o["validation"]["accuracy"]+=on["validation"]["accuracy"][-1]
-                    except:
-                        o["validation"]["sensitivity"]=[on["validation"]["sensitivity"][0]]
-                        o["validation"]["specificity"]=[on["validation"]["specificity"][0]]
-                        o["validation"]["auc"]=[on["validation"]["auc"][0]]
-                        o["validation"]["accuracy"]=[on["validation"]["accuracy"][0]]
-                        o["validation"]["accuracy"]=[on["validation"]["accuracy"][0]]
-
-                    o["model"].append(on["model"])
+                    for k in on["validation"].keys():
+                        report[k].append(on["validation"][k][-1])
                                 
             L=pn.Pathable(self.resultFile)
             L.changeBaseName(f"{a['name']}.pkl")
-            L.writePkl([o])
-            H=[np.mean(o["validation"]["sensitivity"]), np.mean(o["validation"]["specificity"]),np.mean(o["validation"]["accuracy"]),np.mean(o["validation"]["auc"]),np.std(o["validation"]["sensitivity"]), np.std(o["validation"]["specificity"]),np.std(o["validation"]["accuracy"]),np.std(o["validation"]["auc"]),len(o["features"])]
-            p=pd.DataFrame.from_dict({o["name"]:H},orient='index')
+            L.writePkl([O,report])
+            H=[np.mean(report["sensitivity"]), np.mean(report["specificity"]),np.mean(report["accuracy"]),np.mean(report["auc"]),np.std(report["sensitivity"]), np.std(report["specificity"]),np.std(report["accuracy"]),np.std(report["auc"]),len(on["features"])]
+            p=pd.DataFrame.from_dict({on["name"]:H},orient='index')
             p.columns=["sensitivity", "specificity","accuracy","auc","STDsensitivity", "STDspecificity","STDaccuracy","STDauc","nfeatures"]
             self.SubsetsResults=pd.concat([self.SubsetsResults,p])
     def getSubset(self):
@@ -362,16 +342,15 @@ def testDataACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None):
   
     if(Xval is not None):
         VAL=True
-        Xva=pd.DataFrame(StandardScaler().fit_transform(Xval).copy())
-        Xva=Xva.fillna(0)
+
 
     accOut=0
     for pp in range(replicas):
         Xtr,Ytr,Xte,Ytest=splitPandasDataset(X.copy(),Y.copy(),0.8)
         SC=StandardScaler()
         SC.fit(Xtr)
-        Xtr=pd.DataFrame(StandardScaler().fit_transform(Xtr))
-        Xte=pd.DataFrame(StandardScaler().fit_transform(Xte))
+        Xtr=pd.DataFrame(SC.transform(Xtr))
+        Xte=pd.DataFrame(SC.transform(Xte))
         Xte=Xte.fillna(0)
         Xtr=Xtr.fillna(0)
         ml.fit(Xtr.to_numpy(), Ytr.to_numpy().flatten())
@@ -391,10 +370,13 @@ def testDataACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None):
                 accOut=tacc
                 out["model"]=deepcopy(ml)
                 out["model_number"].append(pp)
+                out["modelscaler"]=SC
 
 
                 if VAL:
                     try:
+                        Xva=pd.DataFrame(SC.transform(Xval))
+                        Xva=Xva.fillna(0)
                         Yhval=out["model"].predict(Xva.to_numpy())
                         ot =testPrediction(Yval.to_numpy().flatten(), Yhval.flatten())
                         out["validation"]["accuracy"].append(ot["accuracy"])
@@ -528,6 +510,9 @@ class Regressor(Learner):
         super().addSubset(self,name,cols=None,icols=None,like=None,reducedSubset=True)
 
 if __name__=="__main__":
+
+
+
     # L=Learner()
     # # L.setXfromMyfeJson('/data/tttt/a.json','/data/tttt/ai.json',2)
     # # print(L.X.index)
@@ -581,45 +566,141 @@ if __name__=="__main__":
     # L.addSubset(like="magnitude_lca",name="magnitude_lca")
     # L.addSubset(like="magnitude_rca",name="magnitude_rca")
     # L.addSubset(like="magnitude_rva",name="magnitude_rva")
-    from sklearn.linear_model import LinearRegression
+    # from sklearn.linear_model import LinearRegression
 
-    L=Regressor()
-    L.ml=LinearRegression()
-    L.setX('/data/MYDATA/ISMRM23/Aging/dataframeX_2.json')
-    PP=pn.Pathable('Aging_Study.txt')
-    J=pn.Pathable('/data/MYDATA/ISMRM23/Aging/Aging_Study.txt')
-    K=J.readJson()
-    Y = pd.DataFrame(columns=["age"],index=L.X.index)
-    for t in K:
-        Y.loc[t['name']]=t['age']
-
-
-    L.selectKBestNumber=30
-    L.selectKBestReplicas=10
-    L.trainingReplicas=30
-    L.validationReplicas=5
-    L.trainingSplit=0.75
-    L.setY(Y)
-    L.addSubsetFull('ALL')
-
-    L.addSubset(like="T1",name="T1")
-    L.addSubset(like="T2",name="T2")
-    L.addSubset(like="FOS",name="FOS")
-    L.addSubset(like="SS",name="SS")
-    L.addSubset(like="Caudate",name="Caudate")
-    L.addSubset(like="Hippocampus",name="Hippocampus")
-    L.addSubset(like="Putamen",name="Putamen")
-
-    P= pn.Pathable('results.csv')
-    L.resultFile=P.getPosition()
-    L.calculate()
+    # L=Regressor()
+    # L.ml=LinearRegression()
+    # L.setX('/data/MYDATA/ISMRM23/Aging/dataframeX_2.json')
+    # PP=pn.Pathable('Aging_Study.txt')
+    # J=pn.Pathable('/data/MYDATA/ISMRM23/Aging/Aging_Study.txt')
+    # K=J.readJson()
+    # Y = pd.DataFrame(columns=["age"],index=L.X.index)
+    # for t in K:
+    #     Y.loc[t['name']]=t['age']
 
 
-    L.saveResults()
+    # L.selectKBestNumber=30
+    # L.selectKBestReplicas=10
+    # L.trainingReplicas=30
+    # L.validationReplicas=5
+    # L.trainingSplit=0.75
+    # L.setY(Y)
+    # L.addSubsetFull('ALL')
+
+    # L.addSubset(like="T1",name="T1")
+    # L.addSubset(like="T2",name="T2")
+    # L.addSubset(like="FOS",name="FOS")
+    # L.addSubset(like="SS",name="SS")
+    # L.addSubset(like="Caudate",name="Caudate")
+    # L.addSubset(like="Hippocampus",name="Hippocampus")
+    # L.addSubset(like="Putamen",name="Putamen")
+
+    # P= pn.Pathable('results.csv')
+    # L.resultFile=P.getPosition()
+    # L.calculate()
+
+
+    # L.saveResults()
    
 
 # from pynico_eros_montin import pynico as pn
 # L=pn.createTemporaryPathableFromFileName("t.pkl")
 # o={"aa":9}
 # L.writePkl(o)
+
+
+    import pandas as pd
+    from pynico_eros_montin import pynico as pn
+  
+    from sklearn.neighbors import KNeighborsClassifier
+  
+
+    def create_list_of_strings(Max,Min=0):
+        list_of_strings = []
+        for i in range(Max, Min, -1):
+            list_of_strings.append("aug" + str(i).zfill(4))
+        return list_of_strings
+
+    from copy import deepcopy
+    class myLerner(Learner):
+        def __init__(self, x=None, y=None) -> None:
+            super().__init__(x, y)
+        
+        def writeSubsetsFeaturesName(self,n=None):
+            if n==None:
+                n=0
+            P=pn.Pathable(self.resultFile)
+            if self.Subsets.size()>0:
+                tmp=deepcopy(self.Subsets)
+            else:
+                tmp=deepcopy(self.tmpSubsets)
+            
+            f1=self.X.filter(self.Y[self.Y.iloc[:,n]==1].index,axis=0)
+            f0=self.X.filter(self.Y[self.Y.iloc[:,n]==0].index,axis=0)
+            while (tmp.size()>0):
+                a=tmp.pop()
+                with open(P.changeBaseName(f'feartures{a["name"]}.txt').getPosition(),'w') as d:
+                    d.write('feature,p,value 0, value 1\n')
+                    for f in self.getFeaturesName(s=a):
+                        try:
+                            p,m0,m1=evaluateFeatures2(f0[f].to_numpy().squeeze(),f1[f].to_numpy().squeeze())
+                        except:
+                            print("AAA")
+                        d.write(f'{f},{p},{m0},{m1}\n')
+                d.close()
+                P.undo()
+
+
+
+    LL=KNeighborsClassifier(3)
+    #LL=DecisionTreeClassifier(max_depth=5)
+    #LL=RandomForestClassifier(max_depth=5,random_state=0),
+    # LL=AdaBoostClassifier()
+    # LL=SVC(kernel="linear")
+    # LL= GaussianNB()
+    # LL= QuadraticDiscriminantAnalysis()
+    # LL=  SVC()
+    # LL=GaussianProcessClassifier()
+
+
+
+    PT='/data/PROJECTS/marcoMS/RadiomicsAppliedtoPhaseContrast/link_NEWDATASET_TDCS/radiomic/Man'
+    for i in range(90, -1, -10):
+        GAD=myLerner()
+        list_of_strings = create_list_of_strings(Max=100,Min=i)
+        P= pn.Pathable(f'{PT}/results_K3{100-len(list_of_strings):04d}/results.csv')
+        GAD.setX(f'{PT}/dataframeXaug.json')
+        GAD.X=GAD.X.sort_index()
+        MS=[]
+        for t in GAD.X.index:
+            
+            if 'MS' in t:
+                y=1
  
+            else:
+                y=0
+            MS.append(y)
+
+        Y=pd.DataFrame(MS,index=GAD.X.index)
+        GAD.Y=Y
+        # removing some instances
+        for aa in list_of_strings:
+            GAD.Y.drop(GAD.Y.filter(like=aa,axis=0).index,inplace=True)
+            GAD.X.drop(GAD.X.filter(like=aa,axis=0).index,inplace=True)
+
+
+        GAD.selectKBestNumber=3
+        GAD.selectKBestReplicas=10
+        GAD.trainingReplicas=100
+        GAD.validationReplicas=5
+        GAD.selectKBesttrainsplit=0.9
+
+
+        GAD.ml=LL
+
+        P.ensureDirectoryExistence()
+        GAD.resultFile=P.getPosition()
+        GAD.addSubset(like="FOS.Signal",name="FOSSignal")
+        GAD.calculate()
+        GAD.saveResults()
+        GAD.writeSubsetsFeaturesName()
