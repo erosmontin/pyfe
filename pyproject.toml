@@ -2,6 +2,8 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [project]
 name = "pyfe_eros_montin"
@@ -17,7 +19,8 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-#dependencies=[,"scikit-learn","pandas","numpy"]
+dependencies = ["scikit-learn","pandas","numpy", "pynico @ git+https://github.com/erosmontin/pynico.git","scipy"]
+
 [project.urls]
 "Homepage" = "https://github.com/erosmontin/pyfe"
 "Bug Tracker" = "https://github.com/erosmontin/pyfe/issues"
