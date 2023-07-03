@@ -1,10 +1,10 @@
+VERSION="0.0.3"
 import multiprocessing
 from pynico_eros_montin import pynico as pn
 import pandas as pd
 from sklearn.neighbors import KNeighborsClassifier
 from copy import deepcopy
 from sklearn.feature_selection import f_oneway
-
 
 def setPandasDataFrame(fn):
     if (isinstance(fn,str)):
@@ -125,10 +125,17 @@ class Learner:
                 if i==0:
                     report={}
                     for k in on["validation"].keys():
-                        report[k]=[on["validation"][k][-1]]
+                        try:
+                            report[k]=[on["validation"][k][-1]]
+                        except:
+                            report[k]=[np.nan]
                 else:
                     for k in on["validation"].keys():
-                        report[k].append(on["validation"][k][-1])
+                        try:
+                            appe=on["validation"][k][-1]
+                        except:
+                            appe=np.nan
+                        report[k].append(appe)
                                 
             L=pn.Pathable(self.resultFile)
             L.changeBaseName(f"{a['name']}.pkl")
