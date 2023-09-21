@@ -297,11 +297,11 @@ def sfs(X,Y,training_split=0.8,NF=6,NR=5,direction="backward",ml=KNeighborsClass
 
 
 
-def forwardSequentialFeatureSelector(X,Y,training_split=0.8,NF=6,NR=5,ml=KNeighborsClassifier(3)):
-    return sfs(X,Y,training_split=training_split,NF=NF,NR=NR,direction="forward",ml=ml)
+def forwardSequentialFeatureSelector(X,Y,training_split=0.8,NF=6,NR=5,ml=KNeighborsClassifier(3),ncv=10,n_jobs=1):
+    return sfs(X,Y,training_split=training_split,NF=NF,NR=NR,direction="forward",ml=ml,ncv=ncv,n_jobs=n_jobs)
 
-def backwardSequentialFeatureSelector(X,Y,training_split=0.8,NF=6,NR=5,ml=KNeighborsClassifier(3)):
-    return sfs(X,Y,training_split=training_split,NF=NF,NR=NR,direction="backward",ml=ml)
+def backwardSequentialFeatureSelector(X,Y,training_split=0.8,NF=6,NR=5,ml=KNeighborsClassifier(3),ncv=10,n_jobs=1):
+    return sfs(X,Y,training_split=training_split,NF=NF,NR=NR,direction="backward",ml=ml,ncv=ncv,n_jobs=n_jobs)
 
 
 from sklearn.feature_selection import SelectKBest
