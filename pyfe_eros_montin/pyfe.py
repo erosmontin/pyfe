@@ -211,7 +211,7 @@ def exrtactMyFeatures(jf,dimension,daug=0):
         f=theF3
     if dimension==2:
         f=theF2
-    theF(L["dataset"])
+    # theF(L["dataset"])
     with multiprocessing.Pool() as p:
         # result = p.map(theF3,(L["dataset"]))
         res = p.map(f,(L["dataset"]))
@@ -327,78 +327,12 @@ def computeRow(line,d):
 
     return out
 
+import utils
 
 if __name__=="__main__":
-    # P=pn.Pathable('/data/PERSONALPROJECTS/myPackages/pyfe/tests/data/data.json')
-    # P=pn.Pathable('/data/MYDATA/TDCS/EROS_TDCS/_Hman.json')
-    # o=P.readJson()
-    # x=o["dataset"][0][0]
-
-
-
-    # L=GLCM(3)
-    # L.setImage(x["image"])
-    # L.setROI(x['labelmap'])
-    # L.setROIvalue(x["labelmapvalue"])
-    # L.setOptions(x["settings"])
-    # L.getFeatures()
-    # print(L.getFeatures())
-   o,i=exrtactMyFeatures('/data/PROJECTS/marcoMS/RadiomicsAppliedtoPhaseContrast/link_NEWDATASET_TDCS/radiomic/Man/dataframeXaug.json',2)
-
-    # P=pn.Pathable('/data/MYDATA/TDCS/EROS_TDCS/Hman.json')
-
-    # o=P.readJson()
-    # x=o["dataset"][0]["data"][5]
-
-
-
-    # L=GLCM(3)
-    # L.setImage(x["image"])
-    # L.setROI(x['labelmap'])
-    # L.setROIvalue(x["labelmapvalue"])
-    # L.setOptions(x["groups"][0]["options"])
-    # L.getFeatures()
-    # print(L.getFeatures())
- 
-    # MDj,dimension='/data/PERSONALPROJECTS/myPackages/pyfe/tests/data/data.json',3
-    # MDj,dimension='/data/MYDATA/TDCS/EROS_TDCS/radiomic/Man/Hman.json',2
-    # MDj,dimension='/data/MYDATA/ANO-INT/feNormalizedMuscle.json',3
-    # p=exrtactMyFeaturesToPandas(MDj,dimension)
-    # p.to_json('/data/MYDATA/ANO-INT/extraction_Muscle.json')
-
-#    print(i)
-#    P=pn.Pathable('/data/tttt/a.json')
-#    P.writeJson(o)
-#    P=pn.Pathable('/data/tttt/ai.json')
-#    P.writeJson(i)
-    # MDj,dimension='/data/MYDATA/ANO-INT/feNormalizedMax.json',3
-
-    # p=exrtactMyFeaturesToPandas(MDj,dimension)
-    # p.to_json('/data/MYDATA/ANO-INT/extraction_Max.json')
-
-
-    # MDj,dimension='/data/MYDATA/ANO-INT/feOriginal_1500.json',3
-
-    # p=exrtactMyFeaturesToPandas(MDj,dimension)
-    # p.to_json('/data/MYDATA/ANO-INT/extraction_Original1500.json')
-
-
-    # A=GLCM(3)
-    # print(A.getOptions())
-    # A.setImage('/data/MYDATA/AUGMENTED_RADIOMIC_HIP3/input/Leftp02_rt_0.149_0.247_-6.060_2.163_-4.351_3.036_noise_0.nii.gz')
-    # # A.setImage(x["image"])
-    # A.min=0
-    # A.max=512
-    # A.setROI('/data/MYDATA/AUGMENTED_RADIOMIC_HIP3/output/Leftp02_rt_0.149_0.247_-6.060_2.163_-4.351_3.036_noise_0.nii.gz')
-    # # A.setROI('/data/MYDATA/AUGMENTED_RADIOMIC_HIP3/output/Leftp02_rt_0.149_0.247_-6.060_2.163_-4.351_3.036_noise_0.nii.gz')
-    # # A.setROI(x["labelmap"])
-    # # A.setROIvalue(x["labelmapvalue"])
-    # A.setROIvalue(1)
-    # A.setOptions({})
-    # print(A.getFeatures())
-    # # A=GLCM(3)
-    # # A.setImage('/data/t.nii.gz')
-    # # A.max="N"
-    # # A.min="N"
-    # # A.setROI('/data/t.nii.gz')
-    # # print(A.getFeatures())
+    A=utils.MakeJsonFe()
+    D=A.getDictionary()
+    o=pn.Pathable('/g/a.json')
+    o.writeJson({"dimension":2,"dataset":D})
+    p=exrtactMyFeaturesToPandas(o.getPosition(),2,3)
+    p.to_json('/g/extr.json')
