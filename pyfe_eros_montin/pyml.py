@@ -205,7 +205,8 @@ class Learner:
             self.Subsets.push(SS)
             if reducedSubset:
                 
-                nn=selectSubsetClassif(self.X.iloc[:,SS["indexes"]],self.Y,train_ratio=self.selectKBesttrainsplit,nr=self.selectKBestReplicas,n=self.selectKBestNumber,thetype=self.fs)
+                # nn=selectSubsetClassif(self.X.iloc[:,SS["indexes"]],self.Y,train_ratio=self.selectKBesttrainsplit,nr=self.selectKBestReplicas,n=self.selectKBestNumber,thetype=self.fs)
+                nn=getNFeaturesWithIportance(self.X.iloc[:,SS["indexes"]],self.Y,self.selectKBestNumber,scale=False)
                 SS2={"indexes":[SS["indexes"][x] for x in nn],"name":f"{name}_subset{self.selectKBestNumber}"}
                 if (len(SS2["indexes"])>0):
                     if common:
@@ -257,27 +258,22 @@ import numpy as np
 # sfs=SequentialFeatureSelector(KNeighborsClassifier(3), n_features_to_select=6)
 from sklearn.preprocessing import StandardScaler
 
-
-
-def _fit(x,y,sfs):
-    fit = sfs.fit(x,y)
-    # np.where returns an array
-    return list(np.where(fit.get_support())[0])
-
-
-def sfs(X,Y,training_split=0.8,NF=6,NR=5,direction="backward",ml=KNeighborsClassifier(3),n_jobs=2,ncv=20):
+def sfs(X,Y,training_split=0.8,NF=6,NR=5,direction="backward",ml=KNeighborsClassifier(3),n_jobs=2,ncv=20,scale=False):
     K={}
     P=[]
     #prepare the structure for the multi process
     for _ in range(NR):
         tx,ty,*_=splitPandasDataset(X,Y,train_ratio=training_split)
-        Xva=tx
+        if scale:
+            Xva=pd.DataFrame(StandardScaler().fit_transform(tx))
+        else:    
+            Xva=tx
         Xva=Xva.fillna(0)
         sfs=SequentialFeatureSelector(ml, n_features_to_select=NF,direction=direction,n_jobs=n_jobs,cv=ncv)
         P.append([Xva.to_numpy(), ty.to_numpy().squeeze(),sfs])
 
     pool = multiprocessing.Pool()
-    results = pool.starmap(_fit, P)
+    results = pool.starmap(_fit_sffs, P)
 
     pool.close()
     pool.join()
@@ -297,12 +293,60 @@ def sfs(X,Y,training_split=0.8,NF=6,NR=5,direction="backward",ml=KNeighborsClass
 
 
 
-def forwardSequentialFeatureSelector(X,Y,training_split=0.8,NF=6,NR=5,ml=KNeighborsClassifier(3),ncv=10,n_jobs=1):
-    return sfs(X,Y,training_split=training_split,NF=NF,NR=NR,direction="forward",ml=ml,ncv=ncv,n_jobs=n_jobs)
+from sklearn.ensemble import RandomForestClassifier
 
-def backwardSequentialFeatureSelector(X,Y,training_split=0.8,NF=6,NR=5,ml=KNeighborsClassifier(3),ncv=10,n_jobs=1):
-    return sfs(X,Y,training_split=training_split,NF=NF,NR=NR,direction="backward",ml=ml,ncv=ncv,n_jobs=n_jobs)
 
+
+def _fit_sffs(x,y,sfs):
+    fit = sfs.fit(x,y)
+    # np.where returns an array
+    return list(np.where(fit.get_support())[0])
+
+from sklearn.ensemble import RandomForestClassifier
+
+def featuresImportance(X,Y,scale=False):
+    forest = RandomForestClassifier(random_state=0)
+    if scale:
+        X=StandardScaler().fit_transform(X)
+    if isinstance(Y,pd.DataFrame):
+        Y=Y.to_numpy().ravel()
+    forest.fit(X, Y)
+    return forest.feature_importances_
+
+def rankFeaturesImportance(X,Y,scale=False,method='GINI'):
+    importance=featuresImportance(X,Y,scale)
+    return sorted(zip(importance,range(len(importance))), key=lambda x: x[0], reverse=True)
+
+def getNFeaturesWithIportance(X,Y,n,scale=False):
+    F = rankFeaturesImportance(X,Y,scale)
+    O=[]
+    for t in range(n):
+        O.append(F[t][-1])
+    return O
+
+
+def forwardSequentialFeatureSelector(X,Y,training_split=0.8,NF=6,NR=5,ml=KNeighborsClassifier(3),ncv=10,scale=False):
+    return sfs(X,Y,training_split=training_split,NF=NF,NR=NR,direction="forward",ml=ml,ncv=ncv,n_jobs=1,scale=scale)
+
+def backwardSequentialFeatureSelector(X,Y,training_split=0.8,NF=6,NR=5,ml=KNeighborsClassifier(3),ncv=10,scale=False):
+    return sfs(X,Y,training_split=training_split,NF=NF,NR=NR,direction="backward",ml=ml,ncv=ncv,n_jobs=1,scale=scale)
+
+def forwardSequentialFeatureSelectorNoReplicas(X,Y,NF=6,ml=KNeighborsClassifier(3),ncv=10,scale=False,n_jobs=10):
+    return forwardBackwardSequentialFeatureSelectorNoReplicas(X,Y,NF=NF,ml=ml,ncv=ncv,scale=scale,n_jobs=n_jobs,direction='forward')
+
+def backwardSequentialFeatureSelectorNoReplicas(X,Y,NF=6,ml=KNeighborsClassifier(3),ncv=10,scale=False,n_jobs=10):
+    return forwardBackwardSequentialFeatureSelectorNoReplicas(X,Y,NF=NF,ml=ml,ncv=ncv,scale=scale,n_jobs=n_jobs,direction='backward')
+
+
+def forwardBackwardSequentialFeatureSelectorNoReplicas(X,Y,NF=6,ml=KNeighborsClassifier(3),ncv=10,scale=False,n_jobs=10,direction='backward'):
+        if scale:
+            _X=pd.DataFrame(StandardScaler().fit_transform(X).copy())
+        else:    
+            _X=X
+        _X=_X.fillna(0)
+        sfs=SequentialFeatureSelector(ml, n_features_to_select=NF,direction=direction,n_jobs=n_jobs,cv=ncv)
+        return _fit_sffs(_X.to_numpy(), Y.to_numpy().squeeze(),sfs)
+ 
 
 from sklearn.feature_selection import SelectKBest
 
