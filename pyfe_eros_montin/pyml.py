@@ -245,27 +245,40 @@ def splitPandasDataset(dataX,dataY,train_ratio = 0.75):
 
 from sklearn.feature_selection import SequentialFeatureSelector
 import numpy as np
-sfs=SequentialFeatureSelector(KNeighborsClassifier(3), n_features_to_select=6)
+# sfs=SequentialFeatureSelector(KNeighborsClassifier(3), n_features_to_select=6)
 from sklearn.preprocessing import StandardScaler
 
 
 
+def _fit(x,y,sfs):
+    fit = sfs.fit(x,y)
+    # np.where returns an array
+    return list(np.where(fit.get_support())[0])
 
-def sfs(X,Y,training_split=0.8,NF=6,NR=5,direction="backward",ml=KNeighborsClassifier(3)):
+
+def sfs(X,Y,training_split=0.8,NF=6,NR=5,direction="backward",ml=KNeighborsClassifier(3),n_jobs=2,ncv=20):
     K={}
-    for aa in range(NR):
+    P=[]
+    #prepare the structure for the multi process
+    for _ in range(NR):
         tx,ty,*_=splitPandasDataset(X,Y,train_ratio=training_split)
-        Xva=pd.DataFrame(StandardScaler().fit_transform(tx).copy())
+        Xva=tx
         Xva=Xva.fillna(0)
-        sfs=SequentialFeatureSelector(ml, n_features_to_select=NF,direction=direction)
-        fit = sfs.fit(Xva.to_numpy(), ty.to_numpy().squeeze())
-        features = fit.transform(np.linspace(0,len(tx.columns)-1,len(tx.columns),dtype=int).reshape(1,-1))
-        for f in features[0]:
-            if f in K.keys():
-                K[f]+=1
+        sfs=SequentialFeatureSelector(ml, n_features_to_select=NF,direction=direction,n_jobs=n_jobs,cv=ncv)
+        P.append([Xva.to_numpy(), ty.to_numpy().squeeze(),sfs])
+
+    pool = multiprocessing.Pool()
+    results = pool.starmap(_fit, P)
+
+    pool.close()
+    pool.join()
+    #identify the most selected features
+    for f in results:
+        for _f in f:
+            if _f in K.keys():
+                K[_f]+=1
             else:
-                K[f]=1
-        print(K)
+                K[_f]=1
     L= [ list(K.keys())[i] for i in np.array(list(K.values())).argsort()[::-1]]
     if NF:
         return L[0:NF]
@@ -273,11 +286,13 @@ def sfs(X,Y,training_split=0.8,NF=6,NR=5,direction="backward",ml=KNeighborsClass
         return L
 
 
+
+
 def forwardSequentialFeatureSelector(X,Y,training_split=0.8,NF=6,NR=5,ml=KNeighborsClassifier(3)):
-    return sfs(X,Y,training_split=training_split,NF=NF,NR=NF,direction="forward")
+    return sfs(X,Y,training_split=training_split,NF=NF,NR=NR,direction="forward")
 
 def backwardSequentialFeatureSelector(X,Y,training_split=0.8,NF=6,NR=5,ml=KNeighborsClassifier(3)):
-    return sfs(X,Y,training_split=training_split,NF=NF,NR=NF,direction="backward")
+    return sfs(X,Y,training_split=training_split,NF=NF,NR=NR,direction="backward")
 
 
 from sklearn.feature_selection import SelectKBest
