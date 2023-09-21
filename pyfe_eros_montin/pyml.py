@@ -102,48 +102,57 @@ class Learner:
 
 
 
-    def __calc__(self,a):
-        x=self.X.iloc[:,a["indexes"]]
-        xtr,ytr, xte,yte = splitPandasDataset(x,self.Y,self.trainingSplit)
-        return testDataACC(xtr,ytr,ml = self.ml,replicas=self.trainingReplicas,Xval=xte,Yval=yte,name=a["name"])
-        
+    def __calc__(self):
+        return testDataACC
+
     def calculate(self):
         while (self.Subsets.size()>0):
-            # take the subsets element
+            
             a=self.Subsets.pop()
-            #{'indexes': [143, 224, 147], 'name': 'FOSSignal_subset3'}
             self.tmpSubsets.push(a)
             print(f"calculating subset {a['name']}")
-            # O=self.__calc__(a) ##TODO change for debug
-            # P=[a]*self.validationReplicas
-            # with multiprocessing.Pool() as pp:
-                # O=pp.map(self.__calc__,P)
-            O=[]
-            for i in range(self.validationReplicas):
-                on=self.__calc__(a)            
-                O.append(on)
-                if i==0:
-                    report={}
-                    for k in on["validation"].keys():
-                        try:
-                            report[k]=[on["validation"][k][-1]]
-                        except:
-                            report[k]=[np.nan]
-                else:
-                    for k in on["validation"].keys():
-                        try:
-                            appe=on["validation"][k][-1]
-                        except:
-                            appe=np.nan
-                        report[k].append(appe)
-                                
+            P=[]
+            
+        
+            for _ in range(self.validationReplicas):
+                xtr,ytr, xte,yte = splitPandasDataset(self.X.iloc[:,a["indexes"]],self.Y,self.trainingSplit)
+                ml=deepcopy(self.ml)
+                NR=self.trainingReplicas
+                name=a["name"]
+                other={}
+                P.append([xtr,ytr,ml,NR,xte,yte,name,other])
+
+            with multiprocessing.Pool() as pp:
+                O=pp.starmap(self.__calc__(),P)
+
+            p={}
+            for o in O:
+                for k in o.keys():
+                    if not k in p.keys():
+                        p[k]={}
+                    if isinstance(o[k],dict):
+                        for k2 in o[k].keys():
+                            if not k2 in p[k].keys():
+                                p[k][k2]=[]
+                            p[k][k2].append(o[k][k2][-1])
+                    else:
+                        p[k]=o[k]             
+            METRICS=p['validation'].keys()
+
             L=pn.Pathable(self.resultFile)
             L.changeBaseName(f"{a['name']}.pkl")
-            L.writePkl([O,report])
-            H=[np.mean(report["sensitivity"]), np.mean(report["specificity"]),np.mean(report["accuracy"]),np.mean(report["auc"]),np.std(report["sensitivity"]), np.std(report["specificity"]),np.std(report["accuracy"]),np.std(report["auc"]),len(on["features"])]
-            p=pd.DataFrame.from_dict({on["name"]:H},orient='index')
-            p.columns=["sensitivity", "specificity","accuracy","auc","STDsensitivity", "STDspecificity","STDaccuracy","STDauc","nfeatures"]
-            self.SubsetsResults=pd.concat([self.SubsetsResults,p])
+            L.writePkl([{"original_results":o,"last_results":p}])
+            H=[*[np.mean(p['validation'][m]) for m in METRICS],*[np.std(p['validation'][m]) for m in METRICS]]
+            H+=[len(o["features"])]
+            dataframe=pd.DataFrame.from_dict({p["name"]:H},orient='index')
+            HN=[*[ 'mean_' +m for m in METRICS],*['std_' + m for m in METRICS],'nfeatures']
+            dataframe.columns=HN
+            if len(self.SubsetsResults)>0:
+                self.SubsetsResults=pd.concat([self.SubsetsResults,dataframe])
+            else:
+                self.SubsetsResults=dataframe
+
+
     def getSubset(self):
         return self.Subsets.peek()
     def addSubsetFull(self,name,common=False):
@@ -289,10 +298,10 @@ def sfs(X,Y,training_split=0.8,NF=6,NR=5,direction="backward",ml=KNeighborsClass
 
 
 def forwardSequentialFeatureSelector(X,Y,training_split=0.8,NF=6,NR=5,ml=KNeighborsClassifier(3)):
-    return sfs(X,Y,training_split=training_split,NF=NF,NR=NR,direction="forward")
+    return sfs(X,Y,training_split=training_split,NF=NF,NR=NR,direction="forward",ml=ml)
 
 def backwardSequentialFeatureSelector(X,Y,training_split=0.8,NF=6,NR=5,ml=KNeighborsClassifier(3)):
-    return sfs(X,Y,training_split=training_split,NF=NF,NR=NR,direction="backward")
+    return sfs(X,Y,training_split=training_split,NF=NF,NR=NR,direction="backward",ml=ml)
 
 
 from sklearn.feature_selection import SelectKBest
@@ -356,7 +365,7 @@ def testPrediction(Ygt,Yhat):
     "fn":fn_,
     "auc":roc_auc_score(Ygt.flatten(), Yhat.flatten())}
     return o
-def testDataACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None):
+def testDataACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None,other={}):
     out={"test":{"tn":[], "tp":[], "fp":[], "fn":[],"sensitivity":[],"specificity":[],"accuracy":[], "auc":[]},
         "validation":{"tn":[], "tp":[], "fp":[], "fn":[],"sensitivity":[],"specificity":[],"accuracy":[], "auc":[]},
         "model":None,"model_number":[],"features":list(X.columns),"name":name}
@@ -372,7 +381,7 @@ def testDataACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None):
         SC=StandardScaler()
         SC.fit(Xtr)
         Xtr=pd.DataFrame(SC.transform(Xtr))
-        Xte=pd.DataFrame(SC.transform(Xte))
+        Xte=pd.DataFrame(StandardScaler().fit_transform(Xte))
         Xte=Xte.fillna(0)
         Xtr=Xtr.fillna(0)
         ml.fit(Xtr.to_numpy(), Ytr.to_numpy().flatten())
