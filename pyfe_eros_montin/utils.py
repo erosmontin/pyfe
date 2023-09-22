@@ -28,9 +28,8 @@ class MakeJsonFe():
                 line=[]
                 for pr,roi in enumerate(a):
                     for pv,value in enumerate(self.roisvalueslist):
-                            line.append([roi,value])
-                            if pa==0:
-                                rvprefix.append(f'R:{pr:02d}_RV:{pv:02d}')
+                            line.append([roi,value,f'R:{pr:02d}_RV:{pv:02d}'])
+                            
                 ROIS.append(line)
         #let's see how is the situation with the images and confs
         icprefix=[]
@@ -40,9 +39,7 @@ class MakeJsonFe():
                 line=[]
                 for image in a:
                     for conf in self.confslist:
-                            line.append([image,conf])
-                            if pa==0:
-                                icprefix.append(f'I:{pr:02d}_C:{pv:02d}')
+                            line.append([image,conf,f'I:{pr:02d}_C:{pv:02d}'])
 
                 IMAGES.append(line)
         OUT=[]
@@ -53,7 +50,7 @@ class MakeJsonFe():
                 for ni,image in enumerate(images):
                         for nr,roi in enumerate(rois):
                                 out['data'].append({"image":image[0],"labelmapvalue":roi[1],
-                                                    "groups":image[1],"groupPrefix":f"group{icprefix[ni]}_{rvprefix[nr]}","labelmap":roi[0]})
+                                                    "groups":image[1],"groupPrefix":f"group{image[2]}_{roi[2]}","labelmap":roi[0]})
                 out["id"]=id
                 if self.AUG is not None:
                     out["augment"]=self.AUG      
@@ -96,58 +93,31 @@ if __name__=='__main__':
 
 
 
-    # DIMENSION=3
-    # A=MakeJsonFe()
-    # A.imageslist=imageslist
-    # A.roislist=roilist
-    # A.ids=ids
-    # omo={"min":0,"max":5000,"bin":32}
-    # omo2={"min":0,"max":5000,"bin":128}
-    # MO=[
-    # # {"type":"FOS","options":omo,"name":"FOS32"},
-    # #     {"type":"FOS","options":omo2,"name":"FOS128"},
-    # #     {"type":"GLCM","options":omo,"name":"GLCM32"},
-    # #     {"type":"GLRLM","options":omo,"name":"GLRLM32"},
-    # #     {"type":"GLCM","options":omo2,"name":"GLCM32"},
-    # #     {"type":"GLRLM","options":omo2,"name":"GLRLM32"},
-    #     {"type":"SS","options":None,"name":"SS_1"}]
-    # A.confslist=[MO]
-    # # A.roisvalueslist=[10,20,30,40,50,60]
-    # A.roisvalueslist=[10]
-    # D=A.getDictionary()
-    # o=pn.Pathable('/g/feconf.json')
-    # o.ensureDirectoryExistence()
-    # o.writeJson({"dimension":DIMENSION,"dataset":D})
-    # p=exrtactMyFeaturesToPandas(o.getPosition(),DIMENSION,3)
-    # p.to_json('/g/extraction.json')
-
-    from  pyfe_eros_montin import pyml as pml
-    import pandas as pd
-    from pynico_eros_montin import pynico as pn
-    from sklearn.tree import DecisionTreeClassifier
-    from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
-    from sklearn.naive_bayes import GaussianNB
-    from sklearn.neighbors import KNeighborsClassifier
-    from sklearn.feature_selection import SelectPercentile
-
-    from sklearn.svm import SVC
-    from sklearn.gaussian_process import GaussianProcessClassifier
-    from sklearn.gaussian_process.kernels import RBF
-    from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
-
-    from sklearn.neighbors import KNeighborsClassifier
-
-    from copy import deepcopy
-    import multiprocessing
-
-    import numpy as np
+    DIMENSION=3
+    method={'rois_roivalues':'cross','images_confs':'cross','images_rois':'cross'}
+    A=MakeJsonFe(method=method)
+    A.imageslist=imageslist
+    A.roislist=roilist
+    A.ids=ids
+    omo={"min":0,"max":5000,"bin":32}
+    omo2={"min":0,"max":5000,"bin":128}
+    MO=[
+    {"type":"FOS","options":omo,"name":"FOS32"},
+        # {"type":"FOS","options":omo2,"name":"FOS128"},
+        # {"type":"GLCM","options":omo,"name":"GLCM32"},
+        # {"type":"GLRLM","options":omo,"name":"GLRLM32"},
+        # {"type":"GLCM","options":omo2,"name":"GLCM32"},
+        # {"type":"GLRLM","options":omo2,"name":"GLRLM32"},
+        {"type":"SS","options":None,"name":"SS_1"}]
+    A.confslist=MO
+    # A.roisvalueslist=[10,20,30,40,50,60]
+    A.roisvalueslist=[10,20]
+    D=A.getDictionary()
+    o=pn.Pathable('/g/feconf.json')
+    o.ensureDirectoryExistence()
+    o.writeJson({"dimension":DIMENSION,"dataset":D})
+    p=exrtactMyFeaturesToPandas(o.getPosition(),DIMENSION,3)
+    p.to_json('/g/extraction.json')
 
 
 
-
-    GAD=Learner()
-
-    LL=KNeighborsClassifier()
-
-    GAD.setX('/g/extraction.json')
-    GAD.X=GAD.X.sort_index()
