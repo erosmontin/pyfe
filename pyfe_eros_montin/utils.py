@@ -59,9 +59,16 @@ class MakeJsonFe():
         return OUT
 
 import pynico_eros_montin.pynico as pn
-import pyfe_eros_montin.pyfe as pf
-from pyfe import *
-from pyml import *
+try:
+     #debug
+     from pyfe import *
+     from pyml import *
+except:
+     #prod
+     from pyfe_eros_montin.pyfe import *
+     from pyfe_eros_montin.pyml import *
+
+
 if __name__=='__main__':
     # A=MakeJsonFe()
     # D=A.getDictionary()
