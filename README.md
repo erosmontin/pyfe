@@ -5,19 +5,21 @@ Features extraction and machine learning
 1. install this package
 1. compile [Features Extractor](https://github.com/erosmontin/FeaturesExtractor)
 1. copy bld directory in the libnrary path
-1. install [pynico](https://www.githu.com/erosmontin/pynico) or ask [Eros](eros.montin@gmail.com)
-
-## example use
+1. install [pyfe](https://www.githu.com/erosmontin/pyfe) or ask [Eros](eros.montin@gmail.com)
 ```
-from pydaug_eros_montin import pydaug as daug
-
-im='data/a.nii.gz'
-r='data/b.nii.gz'
-imo='../data/_a.nii.gz'
-ro='data/_b.nii.gz'
-j='data/c.txt'
-print(daug.dAugIt(im,r,j))
+pip install git+https://www.githu.com/erosmontin/pyfe
 ```
+
+
+## Changhelog:
+1. version 0.1.0 **2023-09-20**
+    - add the group name in the group = {"type":"FOS","options":{"min":0,"max":5000,"bin":128},**"name":"FOS32"**}
+    - change the "name" field in the groups to type and that can be FOS,GLCM,GLRLM or SS {**"type":"FOS"**,"options":{"min":0,"max":5000,"bin":128},"name":"FOS32"}
+    - multiprocess of pyml and geenral debug of the classification accuracy function
+    - added utils.py, where there's a new class to customize the extraction:
+1. vesion 0.0.0 **2022-08-01**
+    - main class for exrtaction and machine learning for classification
+
 
 
 [*Dr. Eros Montin, PhD*](http://me.biodimensional.com)

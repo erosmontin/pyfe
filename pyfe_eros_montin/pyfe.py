@@ -211,9 +211,8 @@ def exrtactMyFeatures(jf,dimension,daug=0):
         f=theF3
     if dimension==2:
         f=theF2
-    # theF(L["dataset"])
+    # f(L["dataset"][0]) #THEDEBUGAREA
     with multiprocessing.Pool() as p:
-        # result = p.map(theF3,(L["dataset"]))
         res = p.map(f,(L["dataset"]))
     p.close()
     result=[]
@@ -299,9 +298,9 @@ def theF(X,d):
 def computeRow(line,d):
     out={}
     for x in line:
-        TD=[s["name"].lower() for s in x["groups"]]
-        TDs=[s["options"] for s in x["groups"]]
-        for a,o in zip(TD,TDs):
+        
+        TD=[[s["type"].lower(),s["options"],s["name"]] for s in x["groups"]]
+        for a,o,name in TD:
             if a=="ss":
                 L=SS(d)
             if a=="fos":
@@ -318,16 +317,17 @@ def computeRow(line,d):
             L.setOptions(o)
             f=L.getFeatures()
             ft=list(f.keys())[0]
-            if not (x["groupPrefix"] in out.keys()):
-                out[x["groupPrefix"]]={}
-            if not (ft in out[x["groupPrefix"]].keys()):
-                out[x["groupPrefix"]][ft]={}
-            out[x["groupPrefix"]][ft]= f[ft]
+            prefixname=x["groupPrefix"] +"_"+name
+            if not (prefixname in out.keys()):
+                out[prefixname]={}
+            if not (ft in out[prefixname].keys()):
+                out[prefixname][ft]={}
+            out[prefixname][ft]= f[ft]
         
 
     return out
 
-import utils
+import pyfe_eros_montin.utils as utils
 
 if __name__=="__main__":
     A=utils.MakeJsonFe()
