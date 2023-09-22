@@ -23,7 +23,6 @@ class MakeJsonFe():
         if self.method['rois_roivalues']=='cross':
             # we are going to mix ROIS x rv = (2,1) (2,1) => 4 rois x line
             ROIS=[]
-            rvprefix=[]
             for pa,a in enumerate(self.roislist):
                 line=[]
                 for pr,roi in enumerate(a):
@@ -32,7 +31,6 @@ class MakeJsonFe():
                             
                 ROIS.append(line)
         #let's see how is the situation with the images and confs
-        icprefix=[]
         if self.method['images_confs']=='cross':
             IMAGES=[]
             for pa,a in enumerate(self.imageslist):
@@ -116,7 +114,7 @@ if __name__=='__main__':
         # {"type":"GLCM","options":omo2,"name":"GLCM32"},
         # {"type":"GLRLM","options":omo2,"name":"GLRLM32"},
         {"type":"SS","options":None,"name":"SS_1"}]
-    A.confslist=MO
+    A.confslist=[MO]
     # A.roisvalueslist=[10,20,30,40,50,60]
     A.roisvalueslist=[10,20]
     D=A.getDictionary()
