@@ -409,11 +409,10 @@ def testPrediction(Ygt,Yhat):
     "fn":fn_,
     "auc":roc_auc_score(Ygt.flatten(), Yhat.flatten())}
     return o
-def testDataACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None,other={}):
+def testDataACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None,other=None):
     out={"test":{"tn":[], "tp":[], "fp":[], "fn":[],"sensitivity":[],"specificity":[],"accuracy":[], "auc":[]},
         "validation":{"tn":[], "tp":[], "fp":[], "fn":[],"sensitivity":[],"specificity":[],"accuracy":[], "auc":[]},
         "model":None,"model_number":[],"features":list(X.columns),"name":name}
-
   
     if(Xval is not None):
         VAL=True
@@ -421,7 +420,7 @@ def testDataACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None,other={
 
     accOut=0
     for pp in range(replicas):
-        Xtr,Ytr,Xte,Ytest=splitPandasDataset(X.copy(),Y.copy(),0.8)
+        Xtr,Ytr,Xte,Ytest=splitPandasDataset(X.copy(),Y.copy(),0.75)
         SC=StandardScaler()
         SC.fit(Xtr)
         Xtr=pd.DataFrame(SC.transform(Xtr))
@@ -472,7 +471,7 @@ def testDataACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None,other={
 
     return out
 from sklearn.metrics import mean_squared_error, r2_score
-def testRegressorACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None):
+def testRegressorACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None,other=None):
     out={"test":{"error":[], "r2":[], "score":[]},
         "validation":{"error":[], "r2":[], "score":[]},
         "model":None,"model_number":[],"features":list(X.columns),"name":name}
@@ -486,8 +485,6 @@ def testRegressorACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None):
     errOut=np.inf
     for pp in range(replicas):
         Xtr,Ytr,Xte,Ytest=splitPandasDataset(X.copy(),Y.copy(),0.75)
-        SC=StandardScaler()
-        SC.fit(Xtr)
         Xtr=pd.DataFrame(StandardScaler().fit_transform(Xtr))
         Xte=pd.DataFrame(StandardScaler().fit_transform(Xte))
         Xte=Xte.fillna(0)
@@ -530,38 +527,37 @@ def testRegressorACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None):
 class Regressor(Learner):
     def __init__(self, x=None, y=None) -> None:
         super().__init__(x, y)
-        self.SubsetsResults=pd.DataFrame(columns=["error","r2","score","nfeatures"])
-    def __calc__(self,a):
-        x=self.X.iloc[:,a["indexes"]]
-        xtr,ytr, xte,yte = splitPandasDataset(x,self.Y,self.trainingSplit)
-        return testRegressorACC(xtr,ytr,ml = self.ml,replicas=self.trainingReplicas,Xval=xte,Yval=yte,name=a["name"])
-    def calculate(self):
-        while (self.Subsets.size()>0):
+        # self.SubsetsResults=pd.DataFrame(columns=["error","r2","score","nfeatures"])
+    def __calc__(self):
+        return testRegressorACC
+    
+    # def calculate(self):
+    #     while (self.Subsets.size()>0):
             
-            a=self.Subsets.pop()
-            self.tmpSubsets.push(a)
-            print(f"calculating subset {a['name']}")
-            P=[a]*self.validationReplicas
-            with multiprocessing.Pool() as pp:
-                O=pp.map(self.__calc__,P)
-            for i,on in enumerate(O):
-                if i==0:
-                    o=on
-                    o["model"]=[o["model"]]
-                else:
-                    o["validation"]["error"]+=on["validation"]["error"]
-                    o["validation"]["r2"]+=on["validation"]["r2"]
-                    o["validation"]["score"]+=on["validation"]["score"]
-                    o["model"].append(on["model"])
+    #         a=self.Subsets.pop()
+    #         self.tmpSubsets.push(a)
+    #         print(f"calculating subset {a['name']}")
+    #         P=[a]*self.validationReplicas
+    #         with multiprocessing.Pool() as pp:
+    #             O=pp.map(self.__calc__,P)
+    #         for i,on in enumerate(O):
+    #             if i==0:
+    #                 o=on
+    #                 o["model"]=[o["model"]]
+    #             else:
+    #                 o["validation"]["error"]+=on["validation"]["error"]
+    #                 o["validation"]["r2"]+=on["validation"]["r2"]
+    #                 o["validation"]["score"]+=on["validation"]["score"]
+    #                 o["model"].append(on["model"])
                                 
-            L=pn.Pathable(self.resultFile)
-            L.changeBaseName(f"{a['name']}.pkl")
-            L.writePkl([o])
-            H=[np.mean(o["validation"]["error"]), np.mean(o["validation"]["r2"]),np.mean(o["validation"]["score"]),len(o["features"])]
-            p=pd.DataFrame.from_dict({o["name"]:H},orient='index')
-            p.columns=["error", "r2","score","nfeatures"]
-            self.SubsetsResults=pd.concat([self.SubsetsResults,p])
-    def writeSubsetsFeaturesName(self,n=None):
+    #         L=pn.Pathable(self.resultFile)
+    #         L.changeBaseName(f"{a['name']}.pkl")
+    #         L.writePkl([o])
+    #         H=[np.mean(o["validation"]["error"]), np.mean(o["validation"]["r2"]),np.mean(o["validation"]["score"]),len(o["features"])]
+    #         p=pd.DataFrame.from_dict({o["name"]:H},orient='index')
+    #         p.columns=["error", "r2","score","nfeatures"]
+    #         self.SubsetsResults=pd.concat([self.SubsetsResults,p])
+    # def writeSubsetsFeaturesName(self,n=None):
         if n==None:
             n=0
         P=pn.Pathable(self.resultFile)

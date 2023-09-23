@@ -8,6 +8,8 @@ from pynico_eros_montin import pynico as pn
 
 from pydaug_eros_montin import pydaug as pda
 
+import pyable_eros_montin.dev as dev
+
 class FE():
     def __init__(self,image=None,roi=None,roiv=None,PT=None,options=None) -> None:
         self.info={
@@ -271,7 +273,7 @@ def theF(X,d):
                 im,roi=x["image"],x["labelmap"]
                 print("----------",im,roi)
                 IM=imaginable.SITKImaginable(filename=im)
-                ROI=imaginable.Roiable(filename=roi)
+                ROI=dev.LabelMapable(filename=roi)
                 IM.rotateImage(rotation=R,translation=T,interpolator=sitk.sitkBSpline)
                 ROI.rotateImage(rotation=R,translation=T,useNearestNeighborExtrapolator=True,interpolator=sitk.sitkNearestNeighbor)
 
