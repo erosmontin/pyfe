@@ -124,47 +124,47 @@ if __name__=='__main__':
     # p=exrtactMyFeaturesToPandas(o.getPosition(),DIMENSION,3)
     # p.to_json('/g/extraction.json')
 
-    from glob import glob 
+    # from glob import glob 
     
-    import os
-    theimages=['fo.nii','IN.nii','OUT.nii','wo.nii']
+    # import os
+    # theimages=['fo.nii','IN.nii','OUT.nii','wo.nii']
 
-    P=['/data/PROJECTS/HIPSEGENTATION/RADIOMIC_HIP_2/FILES/C','/data/PROJECTS/HIPSEGENTATION/RADIOMIC_HIP_2/FILES/P']
-    PNAME=['subjects','patients']
-    roilist=[]
-    ids=[]
-    imageslist=[]
+    # P=['/data/PROJECTS/HIPSEGENTATION/RADIOMIC_HIP_2/FILES/C','/data/PROJECTS/HIPSEGENTATION/RADIOMIC_HIP_2/FILES/P']
+    # PNAME=['subjects','patients']
+    # roilist=[]
+    # ids=[]
+    # imageslist=[]
 
-    for p,n in zip(P,PNAME):
-        for l in glob(p+"*", recursive = True)[0:2]:
-            r=os.path.join(l,'data/roi.nii.gz')
-            roilist.append([r])
-            imageslist.append([os.path.join(l,'data',im) for im in theimages])
-            ids.append(f'_{n}_{l.replace(p[:-2],"")}')
+    # for p,n in zip(P,PNAME):
+    #     for l in glob(p+"*", recursive = True)[0:2]:
+    #         r=os.path.join(l,'data/roi.nii.gz')
+    #         roilist.append([r])
+    #         imageslist.append([os.path.join(l,'data',im) for im in theimages])
+    #         ids.append(f'_{n}_{l.replace(p[:-2],"")}')
 
 
-    print('h')
-    EXTRACTION='CONF/extraction.json'
-    P= pn.Pathable('CONF/001/results.csv')
-    DIMENSION=3
-    method={'rois_roivalues':'cross','images_confs':'cross','images_rois':'cross'}
-    A=MakeJsonFe(method=method)
-    A.imageslist=imageslist
-    A.roislist=roilist
-    A.ids=ids
-    omo={"min":0,"max":5000,"bin":32}
-    omo2={"min":0,"max":5000,"bin":128}
-    MO=[
-    {"type":"FOS","options":omo,"name":"FOS32"},
-        {"type":"FOS","options":omo2,"name":"FOS128"},
-        {"type":"GLCM","options":omo,"name":"GLCM32"},
-        {"type":"GLRLM","options":omo,"name":"GLRLM32"},
-        {"type":"GLCM","options":omo2,"name":"GLCM128"},
-        {"type":"GLRLM","options":omo2,"name":"GLRLM128"},
-        {"type":"SS","options":None,"name":"SS_1"}]
-    A.confslist=[MO]
-    A.roisvalueslist=[1,2]
-    D=A.getDictionary()
-    o=pn.Pathable('CONF/feconf.json')
-    o.ensureDirectoryExistence()
-    o.writeJson({"dimension":DIMENSION,"dataset":D})
+    # print('h')
+    # EXTRACTION='CONF/extraction.json'
+    # P= pn.Pathable('CONF/001/results.csv')
+    # DIMENSION=3
+    # method={'rois_roivalues':'cross','images_confs':'cross','images_rois':'cross'}
+    # A=MakeJsonFe(method=method)
+    # A.imageslist=imageslist
+    # A.roislist=roilist
+    # A.ids=ids
+    # omo={"min":0,"max":5000,"bin":32}
+    # omo2={"min":0,"max":5000,"bin":128}
+    # MO=[
+    # {"type":"FOS","options":omo,"name":"FOS32"},
+    #     {"type":"FOS","options":omo2,"name":"FOS128"},
+    #     {"type":"GLCM","options":omo,"name":"GLCM32"},
+    #     {"type":"GLRLM","options":omo,"name":"GLRLM32"},
+    #     {"type":"GLCM","options":omo2,"name":"GLCM128"},
+    #     {"type":"GLRLM","options":omo2,"name":"GLRLM128"},
+    #     {"type":"SS","options":None,"name":"SS_1"}]
+    # A.confslist=[MO]
+    # A.roisvalueslist=[1,2]
+    # D=A.getDictionary()
+    # o=pn.Pathable('CONF/feconf.json')
+    # o.ensureDirectoryExistence()
+    # o.writeJson({"dimension":DIMENSION,"dataset":D})

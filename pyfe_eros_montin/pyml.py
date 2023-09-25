@@ -5,7 +5,7 @@ import pandas as pd
 from sklearn.neighbors import KNeighborsClassifier
 from copy import deepcopy
 from sklearn.feature_selection import f_oneway
-
+import tqdm
 def setPandasDataFrame(fn):
     if (isinstance(fn,str)):
         if pn.Pathable(fn).exists():
@@ -106,26 +106,28 @@ class Learner:
         return testDataACC
 
     def calculate(self):
-        while (self.Subsets.size()>0):
+        while self.Subsets.size()>0:
             
             a=self.Subsets.pop()
             self.tmpSubsets.push(a)
             print(f"calculating subset {a['name']}")
             P=[]
             
-        
-            for _ in range(self.validationReplicas):
-                xtr,ytr, xte,yte = splitPandasDataset(self.X.iloc[:,a["indexes"]],self.Y,self.trainingSplit)
+            splits=splitPandasDataset(self.X.iloc[:,a["indexes"]],self.Y,train_ratio=self.trainingSplit,n=self.validationReplicas)
+            for split in splits:
+                xtr,ytr, xte,yte = split
                 ml=deepcopy(self.ml)
                 NR=self.trainingReplicas
                 name=a["name"]
-                other={}
+                other={"cv":5,"n_jobs":1}
                 P.append([xtr,ytr,ml,NR,xte,yte,name,other])
-
+            
+            # classification10(xtr,ytr,ml,NR,xte,yte,name) #DEBUG
             with multiprocessing.Pool() as pp:
                 O=pp.starmap(self.__calc__(),P)
 
             p={}
+            # print('debug','here')
             for o in O:
                 for k in o.keys():
                     if not k in p.keys():
@@ -206,7 +208,7 @@ class Learner:
             if reducedSubset:
                 
                 # nn=selectSubsetClassif(self.X.iloc[:,SS["indexes"]],self.Y,train_ratio=self.selectKBesttrainsplit,nr=self.selectKBestReplicas,n=self.selectKBestNumber,thetype=self.fs)
-                nn=getNFeaturesWithIportance(self.X.iloc[:,SS["indexes"]],self.Y,self.selectKBestNumber,scale=False)
+                nn=getNFeaturesWithImportance(self.X.iloc[:,SS["indexes"]],self.Y,self.selectKBestNumber,scale=False)
                 SS2={"indexes":[SS["indexes"][x] for x in nn],"name":f"{name}_subset{self.selectKBestNumber}"}
                 if (len(SS2["indexes"])>0):
                     if common:
@@ -222,7 +224,7 @@ class Learner:
 from copy import deepcopy             
 
 from sklearn.model_selection import train_test_split
-def splitPandasDataset(dataX,dataY,train_ratio = 0.75):
+def splitPandasDatasetv0(dataX,dataY,train_ratio = 0.75):
     # train is now 75% of the entire data set
     # the _junk suffix means that we drop that variable completely
     tmpX=deepcopy(dataX)
@@ -250,6 +252,49 @@ def splitPandasDataset(dataX,dataY,train_ratio = 0.75):
 
 
     return x_train,y_train, x_test, y_test
+from sklearn.model_selection import GroupShuffleSplit,GroupKFold,StratifiedGroupKFold
+
+def splitPandasDataset(dataX,dataY,train_ratio = 0.75,n=1):
+    GROUPS=groupingDA(dataX)
+    O=[]
+    for tr,te in GroupShuffleSplit(n_splits=n,train_size=train_ratio).split(dataX,dataY,groups=GROUPS):
+        O.append([dataX.iloc[tr],dataY.iloc[tr],dataX.iloc[te],dataY.iloc[te]])
+    if n==1:
+        return O[0]
+    else:
+        return O
+
+
+
+
+# def splitPandasDatasetRegression(dataX,dataY,train_ratio = 0.75):
+#     # train is now 75% of the entire data set
+#     # the _junk suffix means that we drop that variable completely
+#     tmpX=deepcopy(dataX)
+#     tmpY=deepcopy(dataY)
+#     l=dataX.filter(like='aug',axis=0).index
+#     tmpX=tmpX.drop(l)
+#     tmpY=tmpY.drop(l)
+#     x_train, x_test, y_train, y_test = train_test_split(tmpX, tmpY, test_size=1 - train_ratio)
+
+#     L=x_train.index
+#     LT=x_test.index
+
+#     if len(l)>0: # if the dataset is augmnted
+#         for a in L:
+#             x=dataX.filter(like=a+'-aug',axis=0)
+#             y=dataY.filter(like=a+'-aug',axis=0)
+#             x_train=pd.concat([x_train,x])
+#             y_train=pd.concat([y_train,y])
+        
+#         for a in LT:
+#             x=dataX.filter(like=a+'-aug',axis=0)
+#             y=dataY.filter(like=a+'-aug',axis=0)
+#             x_test=pd.concat([x_test,x])
+#             y_test=pd.concat([y_test,y])
+
+
+#     return x_train,y_train, x_test, y_test
 
 
 
@@ -317,7 +362,7 @@ def rankFeaturesImportance(X,Y,scale=False,method='GINI'):
     importance=featuresImportance(X,Y,scale)
     return sorted(zip(importance,range(len(importance))), key=lambda x: x[0], reverse=True)
 
-def getNFeaturesWithIportance(X,Y,n,scale=False):
+def getNFeaturesWithImportance(X,Y,n,scale=False):
     F = rankFeaturesImportance(X,Y,scale)
     O=[]
     for t in range(n):
@@ -392,22 +437,26 @@ def evaluateFeatures2(f0,f1):
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import confusion_matrix, roc_auc_score
-
+eps=1e-6
 def testPrediction(Ygt,Yhat):
     tn_, fp_, fn_, tp_ = confusion_matrix(Ygt.flatten(), Yhat.flatten()).ravel()
     tp_=float(tp_)
     tn_=float(tn_)
     fn_=float(fn_)
     fp_=float(fp_)
-    tacc=(tp_+tn_)/(tp_+tn_+fn_+fp_)
+    try:
+        auc=roc_auc_score(Ygt.flatten(), Yhat.flatten())
+    except:
+        auc=np.nan
+    tacc=(tp_+tn_)/(tp_+tn_+fn_+fp_+eps)
     o={"accuracy":tacc,
-    "specificity":( tn_ /(tn_+fp_)),
-    "sensitivity":( tp_ /(tp_+fn_)),
+    "specificity":( tn_ /(tn_+fp_+eps)),
+    "sensitivity":( tp_ /(tp_+fn_+eps)),
     "tn":tn_,
     "tp":tp_,
     "fp":fp_,
     "fn":fn_,
-    "auc":roc_auc_score(Ygt.flatten(), Yhat.flatten())}
+    "auc":auc}
     return o
 def testDataACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None,other=None):
     out={"test":{"tn":[], "tp":[], "fp":[], "fn":[],"sensitivity":[],"specificity":[],"accuracy":[], "auc":[]},
@@ -484,7 +533,7 @@ def testRegressorACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None,ot
 
     errOut=np.inf
     for pp in range(replicas):
-        Xtr,Ytr,Xte,Ytest=splitPandasDataset(X.copy(),Y.copy(),0.75)
+        Xtr,Ytr,Xte,Ytest=splitPandasDataset(X.copy(),Y.copy(),0.75,n=1)
         Xtr=pd.DataFrame(StandardScaler().fit_transform(Xtr))
         Xte=pd.DataFrame(StandardScaler().fit_transform(Xte))
         Xte=Xte.fillna(0)
@@ -530,7 +579,16 @@ class Regressor(Learner):
         # self.SubsetsResults=pd.DataFrame(columns=["error","r2","score","nfeatures"])
     def __calc__(self):
         return testRegressorACC
-    
+
+
+
+class BinaryLearner(Learner):
+    def __init__(self, x=None, y=None) -> None:
+        super().__init__(x, y)
+        # self.SubsetsResults=pd.DataFrame(columns=["error","r2","score","nfeatures"])
+    def __calc__(self):
+        return classification10
+
     # def calculate(self):
     #     while (self.Subsets.size()>0):
             
@@ -558,87 +616,111 @@ class Regressor(Learner):
     #         p.columns=["error", "r2","score","nfeatures"]
     #         self.SubsetsResults=pd.concat([self.SubsetsResults,p])
     # def writeSubsetsFeaturesName(self,n=None):
-        if n==None:
-            n=0
-        P=pn.Pathable(self.resultFile)
-        if self.Subsets.size()>0:
-            tmp=deepcopy(self.Subsets)
-        else:
-            tmp=deepcopy(self.tmpSubsets)
+    #     if n==None:
+    #         n=0
+    #     P=pn.Pathable(self.resultFile)
+    #     if self.Subsets.size()>0:
+    #         tmp=deepcopy(self.Subsets)
+    #     else:
+    #         tmp=deepcopy(self.tmpSubsets)
         
-        f1=self.X.filter(self.Y[self.Y.iloc[:,n]==1].index,axis=0)
-        f0=self.X.filter(self.Y[self.Y.iloc[:,n]==0].index,axis=0)
-        while (tmp.size()>0):
-            a=tmp.pop()
-            with open(P.changeBaseName(f'feartures{a["name"]}.txt').getPosition(),'w') as d:
-                d.write('feature,p,mean Healthy,mean MS\n')
-                for f in self.getFeaturesName(s=a):
-                    p,m0,m1=evaluateFeatures2(f0[f].to_numpy().squeeze(),f1[f].to_numpy().squeeze())
-                    d.write(f'{f},{p},{m0},{m1}\n')
-            d.close()
-            P.undo()
-    def addSubset(self,name,cols=None,icols=None,like=None,reducedSubset=True):
-        super().addSubset(self,name,cols=None,icols=None,like=None,reducedSubset=True)
+    #     f1=self.X.filter(self.Y[self.Y.iloc[:,n]==1].index,axis=0)
+    #     f0=self.X.filter(self.Y[self.Y.iloc[:,n]==0].index,axis=0)
+    #     while (tmp.size()>0):
+    #         a=tmp.pop()
+    #         with open(P.changeBaseName(f'feartures{a["name"]}.txt').getPosition(),'w') as d:
+    #             d.write('feature,p,mean Healthy,mean MS\n')
+    #             for f in self.getFeaturesName(s=a):
+    #                 p,m0,m1=evaluateFeatures2(f0[f].to_numpy().squeeze(),f1[f].to_numpy().squeeze())
+    #                 d.write(f'{f},{p},{m0},{m1}\n')
+    #         d.close()
+    #         P.undo()
+    # def addSubset(self,name,cols=None,icols=None,like=None,reducedSubset=True):
+    #     super().addSubset(self,name,cols=None,icols=None,like=None,reducedSubset=True)
+
+from sklearn.pipeline import make_pipeline
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_validate
+def groupingDA(X,daug='-aug'):
+    #get the indexes without da
+    UNIQUE=X.drop(X.filter(like=daug,axis=0).index).index.to_list()
+    GROUPES=[]
+    for a in X.index:
+        n=a.find('-aug')
+        if n>0:
+            a=a[:n]
+        GROUPES.append(UNIQUE.index(a))
+    return GROUPES
+
+from sklearn.model_selection import GroupShuffleSplit
+def classification10(X,Y,ml = None,replicas=5,Xval=None,Yval=None,name=None,other={}):
+    print(np.sum(np.where(Y==0)),np.sum(np.where(Y==1)))
+    out={"test":{"accuracy":[]},
+        "validation":{"tn":[], "tp":[], "fp":[], "fn":[],"sensitivity":[],"specificity":[],"accuracy":[], "auc":[]},
+        "model":None,"model_number":[],"features":list(X.columns),"name":name}
+    _X=X.dropna()
+    cv=20
+    if 'cv' in other.keys():
+        cv=other['cv']
+    n_jobs=2
+    if 'n_jobs' in other.keys():
+        n_jobs=other['n_jobs']
+    bestacc=0.0
+    GROUPS=groupingDA(_X)
+    skf = GroupShuffleSplit(n_splits=cv,test_size=0.2)
+    
+
+    for pp in range(replicas):
+        #make a scikit pipeline
+        clf = make_pipeline(StandardScaler(), ml)
+        #cross validate
+
+        test_acc=cross_validate(clf, _X.to_numpy(), Y.to_numpy().flatten(), cv=skf,n_jobs=n_jobs,return_estimator=True,groups=GROUPS)
+        #select the most accurate set
+        bestmodel=np.argmax(np.array(test_acc['test_score']))
+        out["test"]["accuracy"].append(test_acc['test_score'])
+        if out["test"]["accuracy"][-1][bestmodel]>bestacc:
+            bestacc=out["test"]["accuracy"][-1][bestmodel]
+            Ypred=test_acc['estimator'][bestmodel].predict(Xval)
+            ot =testPrediction(Yval.to_numpy().flatten(), Ypred.flatten())
+            out["validation"]["accuracy"].append(ot["accuracy"])
+            out["validation"]["sensitivity"].append(ot["sensitivity"])
+            out["validation"]["specificity"].append(ot["specificity"])
+            out["validation"]["tn"].append(ot["tn"])
+            out["validation"]["tp"].append(ot["tp"])
+            out["validation"]["fp"].append(ot["fp"])
+            out["validation"]["fn"].append(ot["fn"])
+            out["validation"]["auc"].append(ot["auc"])
+            out['model']=test_acc['estimator'][int(bestacc)]
+    return out
 
 if __name__=="__main__":
 
 
-
-    # L=Learner()
-    # # L.setXfromMyfeJson('/data/tttt/a.json','/data/tttt/ai.json',2)
-    # # print(L.X.index)
-    # PT='/data/MYDATA/TDCS/EROS_TDCS/radiomic/BB4/'
-    # L.setX(PT+'dataframeXaug.json')
+    L=Learner()
+    L.setX('/data/MYDATA/NEWDATASET_TDCS/radiomic2/BB4/dataframeXaug.json')
     
-    # Y=pd.DataFrame([ 1 for a in  L.X.filter(like ='MS',axis=0).index], index=L.X.filter(like ='MS',axis=0).index,columns=["MS"])
-    # Y=pd.concat([Y,pd.DataFrame([ 0 for a in  L.X.filter(like ='NC',axis=0).index], index=L.X.filter(like ='NC',axis=0).index,columns=["MS"])])
-    # L.setY(Y)
-    # L.selectKBestNumber=10
-    # L.selectKBestReplicas=100
-    # L.trainingReplicas=100
-    # L.validationReplicas=20
-    # P= pn.Pathable(PT+'/results_10/results.csv')
-    # P.ensureDirectoryExistence()
-    # L.resultFile=P.getPosition()
-    # L.addSubset(like="FOS.Signal",name="FOSSignal")
-    # L.addSubset(like="FOS.Histogram",name="FOSHistogram")
-    # L.addSubset(like="FOS",name="FOS")
-    # L.addSubsetFull("All")
-    # L.addSubset(like="GLCM",name="GLCM")
-    # L.addSubset(like="GLRLM",name="GLRLM")
-    # L.addSubset(like="GL",name="Texture")
-    # L.addSubset(like="_lca.",name="LCA")
-    # L.addSubset(like="lca.FOS",name="LCAFOS")
-    # L.addSubset(like="lca.GLCM",name="LCAGLCM")
-    # L.addSubset(like="lca.GLRLM",name="LCAGLRLM")
-    # L.addSubset(like="lca.GL",name="LCATexture")
-    # L.addSubset(like="lva.FOS",name="LVAFOS")
-    # L.addSubset(like="lva.GLCM",name="LVAGLCM")
-    # L.addSubset(like="lva.GLRLM",name="LVAGLRLM")
-    # L.addSubset(like="lva.GL",name="LVATexture")
-    # L.addSubset(like="rca.FOS",name="RCAFOS")
-    # L.addSubset(like="rca.GLCM",name="RCAGLCM")
-    # L.addSubset(like="rca.GLRLM",name="RCAGLRLM")
-    # L.addSubset(like="rca.GL",name="RCAGTextureM")
-    # L.addSubset(like="rva.FOS",name="RVAFOS")
-    # L.addSubset(like="rva.GLCM",name="RVAGLCM")
-    # L.addSubset(like="rva.GLRLM",name="RVAGLRLM")
-    # L.addSubset(like="rva.GL",name="RVATexture")
-    # L.addSubset(like="_lva.",name="LVA")
-    # L.addSubset(like="_rca.",name="RCA")
-    # L.addSubset(like="_rva.",name="RVA")    
-    # L.addSubset(like="magnitude",name="magnitude")
-    # L.addSubset(like="phase",name="phase")
-    # L.addSubset(like="phase_lva",name="phase_lva")
-    # L.addSubset(like="phase_lca",name="phase_lca")
-    # L.addSubset(like="phase_rca",name="phase_rca")
-    # L.addSubset(like="phase_rva",name="phase_rva")
-    # L.addSubset(like="magnitude_lva",name="magnitude_lva")
-    # L.addSubset(like="magnitude_lca",name="magnitude_lca")
-    # L.addSubset(like="magnitude_rca",name="magnitude_rca")
-    # L.addSubset(like="magnitude_rva",name="magnitude_rva")
-    # from sklearn.linear_model import LinearRegression
+    for t in range(1,9):
+       L.X.drop(L.X.filter(like=f'aug00{t}',axis=0).index,inplace=True)
 
+    MS=[]
+    for t in L.X.index:
+        if 'MS' in t:
+            y=1
+        else:
+            y=0
+        MS.append(y)
+
+    Y=pd.DataFrame(MS,index=L.X.index)
+    X=L.X
+    Xtr,Ytr,Xte,Ytest=splitPandasDataset(X,
+    Y,0.75)
+    ml=KNeighborsClassifier(3)
+    clf = make_pipeline(StandardScaler(), ml)
+    cv=5
+    SI05t=pml.getNFeaturesWithIportance(X,Y,n=5,scale=True)
+    acc=cross_validate(clf, Xtr.iloc[:,SI05t], Ytr, cv=cv,n_jobs=10,return_estimator=True)
+    print('f')
     # L=Regressor()
     # L.ml=LinearRegression()
     # L.setX('/data/MYDATA/ISMRM23/Aging/dataframeX_2.json')
@@ -735,43 +817,43 @@ if __name__=="__main__":
 
 
 
-    PT='/data/PROJECTS/marcoMS/RadiomicsAppliedtoPhaseContrast/link_NEWDATASET_TDCS/radiomic/Man'
-    for i in range(90, -1, -10):
-        GAD=myLerner()
-        list_of_strings = create_list_of_strings(Max=100,Min=i)
-        P= pn.Pathable(f'{PT}/results_K3{100-len(list_of_strings):04d}/results.csv')
-        GAD.setX(f'{PT}/dataframeXaug.json')
-        GAD.X=GAD.X.sort_index()
-        MS=[]
-        for t in GAD.X.index:
+    # PT='/data/PROJECTS/marcoMS/RadiomicsAppliedtoPhaseContrast/link_NEWDATASET_TDCS/radiomic/Man'
+    # for i in range(90, -1, -10):
+    #     GAD=myLerner()
+    #     list_of_strings = create_list_of_strings(Max=100,Min=i)
+    #     P= pn.Pathable(f'{PT}/results_K3{100-len(list_of_strings):04d}/results.csv')
+    #     GAD.setX(f'{PT}/dataframeXaug.json')
+    #     GAD.X=GAD.X.sort_index()
+    #     MS=[]
+    #     for t in GAD.X.index:
             
-            if 'MS' in t:
-                y=1
+    #         if 'MS' in t:
+    #             y=1
  
-            else:
-                y=0
-            MS.append(y)
+    #         else:
+    #             y=0
+    #         MS.append(y)
 
-        Y=pd.DataFrame(MS,index=GAD.X.index)
-        GAD.Y=Y
-        # removing some instances
-        for aa in list_of_strings:
-            GAD.Y.drop(GAD.Y.filter(like=aa,axis=0).index,inplace=True)
-            GAD.X.drop(GAD.X.filter(like=aa,axis=0).index,inplace=True)
-
-
-        GAD.selectKBestNumber=3
-        GAD.selectKBestReplicas=10
-        GAD.trainingReplicas=100
-        GAD.validationReplicas=5
-        GAD.selectKBesttrainsplit=0.9
+    #     Y=pd.DataFrame(MS,index=GAD.X.index)
+    #     GAD.Y=Y
+    #     # removing some instances
+    #     for aa in list_of_strings:
+    #         GAD.Y.drop(GAD.Y.filter(like=aa,axis=0).index,inplace=True)
+    #         GAD.X.drop(GAD.X.filter(like=aa,axis=0).index,inplace=True)
 
 
-        GAD.ml=LL
+    #     GAD.selectKBestNumber=3
+    #     GAD.selectKBestReplicas=10
+    #     GAD.trainingReplicas=100
+    #     GAD.validationReplicas=5
+    #     GAD.selectKBesttrainsplit=0.9
 
-        P.ensureDirectoryExistence()
-        GAD.resultFile=P.getPosition()
-        GAD.addSubset(like="FOS.Signal",name="FOSSignal")
-        GAD.calculate()
-        GAD.saveResults()
-        GAD.writeSubsetsFeaturesName()
+
+    #     GAD.ml=LL
+
+    #     P.ensureDirectoryExistence()
+    #     GAD.resultFile=P.getPosition()
+    #     GAD.addSubset(like="FOS.Signal",name="FOSSignal")
+    #     GAD.calculate()
+    #     GAD.saveResults()
+    #     GAD.writeSubsetsFeaturesName()

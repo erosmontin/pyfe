@@ -222,6 +222,7 @@ def exrtactMyFeatures(jf,dimension,daug=0):
        
 
     for r,id in res:
+        print(id)
         if (isinstance(id,list)):
             for rr,idr in zip(r,id):
                 result.append(rr)
