@@ -5,7 +5,7 @@ import pandas as pd
 from sklearn.neighbors import KNeighborsClassifier
 from copy import deepcopy
 from sklearn.feature_selection import f_oneway
-import tqdm
+
 def setPandasDataFrame(fn):
     if (isinstance(fn,str)):
         if pn.Pathable(fn).exists():

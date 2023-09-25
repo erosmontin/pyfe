@@ -201,7 +201,7 @@ class GLRLM(TEXTURES):
         
 
 import multiprocessing
-def exrtactMyFeatures(jf,dimension,daug=0):
+def exrtactMyFeatures(jf,dimension,parallel=True):
     if isinstance(jf,str):
         P=pn.Pathable(jf)
         if not P.exists():
@@ -214,9 +214,15 @@ def exrtactMyFeatures(jf,dimension,daug=0):
     if dimension==2:
         f=theF2
     # f(L["dataset"][0]) #THEDEBUGAREA
-    with multiprocessing.Pool() as p:
-        res = p.map(f,(L["dataset"]))
-    p.close()
+    if parallel:
+        with multiprocessing.Pool() as p:
+            res = p.map(f,(L["dataset"]))
+        p.close()
+    else:
+        res=[]
+        for l in L["dataset"]:
+            o=f(l)
+            res.append(o)
     result=[]
     idx=[]
        
@@ -233,8 +239,8 @@ def exrtactMyFeatures(jf,dimension,daug=0):
     return result,idx
 
 import pandas as pd
-def exrtactMyFeaturesToPandas(jf,dimension,max_level=2,daug=0):
-    r,ind=exrtactMyFeatures(jf,dimension,daug)
+def exrtactMyFeaturesToPandas(jf,dimension,max_level=2,parallel=True):
+    r,ind=exrtactMyFeatures(jf,dimension,parallel)
     print("normalizing")
     X=pd.json_normalize(r,max_level=max_level)
     X.index=ind
