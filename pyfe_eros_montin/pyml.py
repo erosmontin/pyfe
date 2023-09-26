@@ -313,6 +313,7 @@ def sfs(X,Y,training_split=0.8,NF=6,NR=5,direction="backward",ml=KNeighborsClass
             Xva=pd.DataFrame(StandardScaler().fit_transform(tx))
         else:    
             Xva=tx
+        Xva=Xva.interpolate()
         Xva=Xva.fillna(0)
         sfs=SequentialFeatureSelector(ml, n_features_to_select=NF,direction=direction,n_jobs=n_jobs,cv=ncv)
         P.append([Xva.to_numpy(), ty.to_numpy().squeeze(),sfs])
@@ -388,6 +389,7 @@ def forwardBackwardSequentialFeatureSelectorNoReplicas(X,Y,NF=6,ml=KNeighborsCla
             _X=pd.DataFrame(StandardScaler().fit_transform(X).copy())
         else:    
             _X=X
+        X.interpolate()
         _X=_X.fillna(0)
         sfs=SequentialFeatureSelector(ml, n_features_to_select=NF,direction=direction,n_jobs=n_jobs,cv=ncv)
         return _fit_sffs(_X.to_numpy(), Y.to_numpy().squeeze(),sfs)
@@ -402,7 +404,8 @@ def selectSubsetClassif(x,y,thetype=f_oneway,train_ratio=0.75,nr=10,n=None,index
 
     for aa in range(nr):
         tx,ty,*_=splitPandasDataset(x,y,train_ratio=train_ratio)
-        Xva=pd.DataFrame(StandardScaler().fit_transform(tx).copy())
+        Xva=pd.DataFrame(StandardScaler().fit_transform(tx))
+        Xva=Xva.interpolate()
         Xva=Xva.fillna(0)
 
         if n:
@@ -470,6 +473,7 @@ def testDataACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None,other=N
     accOut=0
     for pp in range(replicas):
         Xtr,Ytr,Xte,Ytest=splitPandasDataset(X.copy(),Y.copy(),0.75)
+        
         SC=StandardScaler()
         SC.fit(Xtr)
         Xtr=pd.DataFrame(SC.transform(Xtr))
@@ -658,7 +662,8 @@ def classification10(X,Y,ml = None,replicas=5,Xval=None,Yval=None,name=None,othe
     out={"test":{"accuracy":[]},
         "validation":{"tn":[], "tp":[], "fp":[], "fn":[],"sensitivity":[],"specificity":[],"accuracy":[], "auc":[]},
         "model":None,"model_number":[],"features":list(X.columns),"name":name}
-    _X=X.dropna()
+    _X=X.interpolate()
+    _X=_X.fillna(0)
     cv=20
     if 'cv' in other.keys():
         cv=other['cv']
@@ -668,8 +673,6 @@ def classification10(X,Y,ml = None,replicas=5,Xval=None,Yval=None,name=None,othe
     bestacc=0.0
     GROUPS=groupingDA(_X)
     skf = GroupShuffleSplit(n_splits=cv,test_size=0.2)
-    
-
     for pp in range(replicas):
         #make a scikit pipeline
         clf = make_pipeline(StandardScaler(), ml)
