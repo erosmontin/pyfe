@@ -254,10 +254,21 @@ def splitPandasDatasetv0(dataX,dataY,train_ratio = 0.75):
     return x_train,y_train, x_test, y_test
 from sklearn.model_selection import GroupShuffleSplit,GroupKFold,StratifiedGroupKFold
 
-def splitPandasDataset(dataX,dataY,train_ratio = 0.75,n=1):
+def splitPandasDatasetv1(dataX,dataY,train_ratio = 0.75,n=1):
     GROUPS=groupingDA(dataX)
     O=[]
     for tr,te in GroupShuffleSplit(n_splits=n,train_size=train_ratio).split(dataX,dataY,groups=GROUPS):
+        O.append([dataX.iloc[tr],dataY.iloc[tr],dataX.iloc[te],dataY.iloc[te]])
+    if n==1:
+        return O[0]
+    else:
+        return O
+    
+def splitPandasDataset(dataX,dataY,train_ratio = 0.75,n=1):
+    GROUPS=groupingDA(dataX)
+    O=[]
+    
+    for tr,te in StratifiedGroupKFold(n_splits=n,shuffle=True).split(dataX,dataY,groups=GROUPS):
         O.append([dataX.iloc[tr],dataY.iloc[tr],dataX.iloc[te],dataY.iloc[te]])
     if n==1:
         return O[0]
@@ -658,7 +669,7 @@ def groupingDA(X,daug='-aug'):
 
 from sklearn.model_selection import GroupShuffleSplit
 def classification10(X,Y,ml = None,replicas=5,Xval=None,Yval=None,name=None,other={}):
-    print(np.sum(np.where(Y==0)),np.sum(np.where(Y==1)))
+    print((Y==0).sum(),(Y==1).sum())
     out={"test":{"accuracy":[]},
         "validation":{"tn":[], "tp":[], "fp":[], "fn":[],"sensitivity":[],"specificity":[],"accuracy":[], "auc":[]},
         "model":None,"model_number":[],"features":list(X.columns),"name":name}
