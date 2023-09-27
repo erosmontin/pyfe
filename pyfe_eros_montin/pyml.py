@@ -689,16 +689,17 @@ def classification10(X,Y,ml = None,replicas=5,Xval=None,Yval=None,name=None,othe
     n_jobs=2
     if 'n_jobs' in other.keys():
         n_jobs=other['n_jobs']
-    bestacc=0.0
+    bestacc=-1
     GROUPS=groupingDA(_X)
-    skf = GroupShuffleSplit(n_splits=cv,test_size=0.2)
+    skf=StratifiedGroupKFold(n_splits=cv,shuffle=True)
+    # skf = GroupShuffleSplit(n_splits=cv,test_size=0.2)
     for pp in range(replicas):
         #make a scikit pipeline
         clf = make_pipeline(StandardScaler(), ml)
         #cross validate
 
         test_acc=cross_validate(clf, _X.to_numpy(), Y.to_numpy().flatten(), cv=skf,n_jobs=n_jobs,return_estimator=True,groups=GROUPS)
-        #select the most accurate set
+        #select the most accurate model
         bestmodel=np.argmax(np.array(test_acc['test_score']))
         out["test"]["accuracy"].append(test_acc['test_score'])
         if out["test"]["accuracy"][-1][bestmodel]>bestacc:
@@ -740,7 +741,7 @@ if __name__=="__main__":
     ml=KNeighborsClassifier(3)
     clf = make_pipeline(StandardScaler(), ml)
     cv=5
-    SI05t=pml.getNFeaturesWithIportance(X,Y,n=5,scale=True)
+    # SI05t=pml.getNFeaturesWithIportanece(X,Y,n=5,scale=True)
     acc=cross_validate(clf, Xtr.iloc[:,SI05t], Ytr, cv=cv,n_jobs=10,return_estimator=True)
     print('f')
     # L=Regressor()
