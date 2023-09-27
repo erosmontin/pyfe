@@ -25,6 +25,7 @@ class Learner:
         self.validationReplicas=10
         self.ml=KNeighborsClassifier(3)
         self.fs=f_oneway
+        self.parallel=True
         if x:
             self.X=x
         else:
@@ -122,10 +123,17 @@ class Learner:
                 other={"cv":5,"n_jobs":1}
                 P.append([xtr,ytr,ml,NR,xte,yte,name,other])
             
-            # classification10(xtr,ytr,ml,NR,xte,yte,name) #DEBUG
-            with multiprocessing.Pool() as pp:
-                O=pp.starmap(self.__calc__(),P)
+            if self.parallel:
+                with multiprocessing.Pool() as pp:
+                    O=pp.starmap(self.__calc__(),P)
+                pp.close()
+            else:
+                O=[]
+                f=self.__calc__()
+                for l in P:
 
+                    o=f(*l)
+                    O.append(o)
             p={}
             # print('debug','here')
             for o in O:

@@ -2,3 +2,4 @@ dist/*
 
 *.pyc
 pyfe_eros_montin/test_.py
+pyfe_eros_montin/test_0.py
