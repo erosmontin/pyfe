@@ -5,6 +5,7 @@ import pandas as pd
 from sklearn.neighbors import KNeighborsClassifier
 from copy import deepcopy
 from sklearn.feature_selection import f_oneway
+import matplotlib.pyplot as plt
 
 def setPandasDataFrame(fn):
     if (isinstance(fn,str)):
@@ -21,7 +22,7 @@ class Learner:
         self.selectKBesttrainsplit=0.8
         self.trainingReplicas=100
         self.trainingSplit=0.8
-        
+        self.className=['0','1']
         self.validationReplicas=10
         self.ml=KNeighborsClassifier(3)
         self.fs=f_oneway
@@ -78,7 +79,28 @@ class Learner:
         self.SubsetsResults.to_csv(self.resultFile)
 
 
+    def evaluateFeatures2(self,x,y,bplt=None):
+        p,m0,m1=evaluateFeatures2(x,y)
+        
+        if bplt is not None:
+            fig=plt.figure()
+            plt.boxplot([x,y],labels=self.className,patch_artist=True)
+            plt.title(f'{bplt["title"]} (P:{p:0.2e})')
+            plt.xlabel('feature')
+            plt.ylabel('feature values')
+            plt.grid()
+            if 'fn' in bplt.keys():
+                if not 'dpi' in bplt.keys():
+                    dpi=100
+                    if bplt['fn'] is not None:
+                        plt.savefig(bplt['fn'].replace('.','_'))
 
+            return p,m0,m1,fig
+
+        
+        return p,m0,m1
+        
+            
         
     def writeSubsetsFeaturesName(self,n=None):
         if n==None:
@@ -94,13 +116,30 @@ class Learner:
         while (tmp.size()>0):
             a=tmp.pop()
             with open(P.changeBaseName(f'feartures{a["name"]}.txt').getPosition(),'w') as d:
-                d.write('feature,p,mean Healthy,mean MS\n')
+                d.write(f'Feature,p,{self.classNames[0]},{self.classNames[1]}\n')
                 for f in self.getFeaturesName(s=a):
-                    p,m0,m1=evaluateFeatures2(f0[f].to_numpy().squeeze(),f1[f].to_numpy().squeeze())
+                    p,m0,m1=self.evaluateFeatures2(f0[f].to_numpy().squeeze(),f1[f].to_numpy().squeeze())
                     d.write(f'{f},{p},{m0},{m1}\n')
             d.close()
             P.undo()
 
+    def checkResultsFeatures(self,resultfile,OUT=None):
+        a=pn.readPkl(resultfile)
+        f1=self.Y[self.Y.iloc[:,0]==1].index
+        f0=self.Y[self.Y.iloc[:,0]==0].index
+
+        for f in a[0][0]['original_results']['features']:
+            X0=GAD.X.loc[f0,f]
+            X1=GAD.X.loc[f1,f]
+            Y=GAD.Y
+            if OUT is not None:
+                out=f'{OUT}{f}.png'
+                pn.Pathable(out).ensureDirectoryExistence()
+            else:
+                out=None
+            p,m0,m1,fig=self.evaluateFeatures2(X0.to_numpy().squeeze(),X1.to_numpy().squeeze(),{'title':f,'fn':out})
+
+        return True
 
 
     def __calc__(self):
@@ -612,54 +651,6 @@ class BinaryLearner(Learner):
     def __calc__(self):
         return classification10
 
-    # def calculate(self):
-    #     while (self.Subsets.size()>0):
-            
-    #         a=self.Subsets.pop()
-    #         self.tmpSubsets.push(a)
-    #         print(f"calculating subset {a['name']}")
-    #         P=[a]*self.validationReplicas
-    #         with multiprocessing.Pool() as pp:
-    #             O=pp.map(self.__calc__,P)
-    #         for i,on in enumerate(O):
-    #             if i==0:
-    #                 o=on
-    #                 o["model"]=[o["model"]]
-    #             else:
-    #                 o["validation"]["error"]+=on["validation"]["error"]
-    #                 o["validation"]["r2"]+=on["validation"]["r2"]
-    #                 o["validation"]["score"]+=on["validation"]["score"]
-    #                 o["model"].append(on["model"])
-                                
-    #         L=pn.Pathable(self.resultFile)
-    #         L.changeBaseName(f"{a['name']}.pkl")
-    #         L.writePkl([o])
-    #         H=[np.mean(o["validation"]["error"]), np.mean(o["validation"]["r2"]),np.mean(o["validation"]["score"]),len(o["features"])]
-    #         p=pd.DataFrame.from_dict({o["name"]:H},orient='index')
-    #         p.columns=["error", "r2","score","nfeatures"]
-    #         self.SubsetsResults=pd.concat([self.SubsetsResults,p])
-    # def writeSubsetsFeaturesName(self,n=None):
-    #     if n==None:
-    #         n=0
-    #     P=pn.Pathable(self.resultFile)
-    #     if self.Subsets.size()>0:
-    #         tmp=deepcopy(self.Subsets)
-    #     else:
-    #         tmp=deepcopy(self.tmpSubsets)
-        
-    #     f1=self.X.filter(self.Y[self.Y.iloc[:,n]==1].index,axis=0)
-    #     f0=self.X.filter(self.Y[self.Y.iloc[:,n]==0].index,axis=0)
-    #     while (tmp.size()>0):
-    #         a=tmp.pop()
-    #         with open(P.changeBaseName(f'feartures{a["name"]}.txt').getPosition(),'w') as d:
-    #             d.write('feature,p,mean Healthy,mean MS\n')
-    #             for f in self.getFeaturesName(s=a):
-    #                 p,m0,m1=evaluateFeatures2(f0[f].to_numpy().squeeze(),f1[f].to_numpy().squeeze())
-    #                 d.write(f'{f},{p},{m0},{m1}\n')
-    #         d.close()
-    #         P.undo()
-    # def addSubset(self,name,cols=None,icols=None,like=None,reducedSubset=True):
-    #     super().addSubset(self,name,cols=None,icols=None,like=None,reducedSubset=True)
 
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import cross_val_score
@@ -718,165 +709,31 @@ def classification10(X,Y,ml = None,replicas=5,Xval=None,Yval=None,name=None,othe
     return out
 
 if __name__=="__main__":
+    GAD=BinaryLearner()
+    GAD.setX('/data/MYDATA/ANO-INT/extraction_Max.json')
 
+    risposta=pd.read_csv('/data/MYDATA/ANO-INT/risposta.csv')
 
-    L=Learner()
-    L.setX('/data/MYDATA/NEWDATASET_TDCS/radiomic2/BB4/dataframeXaug.json')
-    
-    for t in range(1,9):
-       L.X.drop(L.X.filter(like=f'aug00{t}',axis=0).index,inplace=True)
+    Y=pd.DataFrame()
+    X=pd.DataFrame()
+    GAD.X.interpolate(inplace=True)
+    GAD.X.fillna(0,inplace=True)
 
-    MS=[]
-    for t in L.X.index:
-        if 'MS' in t:
-            y=1
-        else:
-            y=0
-        MS.append(y)
-
-    Y=pd.DataFrame(MS,index=L.X.index)
-    X=L.X
-    Xtr,Ytr,Xte,Ytest=splitPandasDataset(X,
-    Y,0.75)
-    ml=KNeighborsClassifier(3)
-    clf = make_pipeline(StandardScaler(), ml)
-    cv=5
-    # SI05t=pml.getNFeaturesWithIportanece(X,Y,n=5,scale=True)
-    acc=cross_validate(clf, Xtr.iloc[:,SI05t], Ytr, cv=cv,n_jobs=10,return_estimator=True)
-    print('f')
-    # L=Regressor()
-    # L.ml=LinearRegression()
-    # L.setX('/data/MYDATA/ISMRM23/Aging/dataframeX_2.json')
-    # PP=pn.Pathable('Aging_Study.txt')
-    # J=pn.Pathable('/data/MYDATA/ISMRM23/Aging/Aging_Study.txt')
-    # K=J.readJson()
-    # Y = pd.DataFrame(columns=["age"],index=L.X.index)
-    # for t in K:
-    #     Y.loc[t['name']]=t['age']
-
-
-    # L.selectKBestNumber=30
-    # L.selectKBestReplicas=10
-    # L.trainingReplicas=30
-    # L.validationReplicas=5
-    # L.trainingSplit=0.75
-    # L.setY(Y)
-    # L.addSubsetFull('ALL')
-
-    # L.addSubset(like="T1",name="T1")
-    # L.addSubset(like="T2",name="T2")
-    # L.addSubset(like="FOS",name="FOS")
-    # L.addSubset(like="SS",name="SS")
-    # L.addSubset(like="Caudate",name="Caudate")
-    # L.addSubset(like="Hippocampus",name="Hippocampus")
-    # L.addSubset(like="Putamen",name="Putamen")
-
-    # P= pn.Pathable('results.csv')
-    # L.resultFile=P.getPosition()
-    # L.calculate()
-
-
-    # L.saveResults()
-   
-
-# from pynico_eros_montin import pynico as pn
-# L=pn.createTemporaryPathableFromFileName("t.pkl")
-# o={"aa":9}
-# L.writePkl(o)
-
-
-    import pandas as pd
-    from pynico_eros_montin import pynico as pn
-  
-    from sklearn.neighbors import KNeighborsClassifier
-  
-
-    def create_list_of_strings(Max,Min=0):
-        list_of_strings = []
-        for i in range(Max, Min, -1):
-            list_of_strings.append("aug" + str(i).zfill(4))
-        return list_of_strings
-
-    from copy import deepcopy
-    class myLerner(Learner):
-        def __init__(self, x=None, y=None) -> None:
-            super().__init__(x, y)
+    # filter the patients are in the study after the review
+    N1=1
+    N2=1
+    for pz,rc in zip(risposta['pz'],risposta['RC']):
         
-        def writeSubsetsFeaturesName(self,n=None):
-            if n==None:
-                n=0
-            P=pn.Pathable(self.resultFile)
-            if self.Subsets.size()>0:
-                tmp=deepcopy(self.Subsets)
-            else:
-                tmp=deepcopy(self.tmpSubsets)
-            
-            f1=self.X.filter(self.Y[self.Y.iloc[:,n]==1].index,axis=0)
-            f0=self.X.filter(self.Y[self.Y.iloc[:,n]==0].index,axis=0)
-            while (tmp.size()>0):
-                a=tmp.pop()
-                with open(P.changeBaseName(f'feartures{a["name"]}.txt').getPosition(),'w') as d:
-                    d.write('feature,p,value 0, value 1\n')
-                    for f in self.getFeaturesName(s=a):
-                        try:
-                            p,m0,m1=evaluateFeatures2(f0[f].to_numpy().squeeze(),f1[f].to_numpy().squeeze())
-                        except:
-                            print("AAA")
-                        d.write(f'{f},{p},{m0},{m1}\n')
-                d.close()
-                P.undo()
+        index=GAD.X.filter(like=pz,axis=0).index
+        
+        if rc==1:
+            index=index[0:N1] 
+        if rc==0:
+            index=index[0:(N2)]
+        print(len(index))
 
-
-
-    LL=KNeighborsClassifier(3)
-    #LL=DecisionTreeClassifier(max_depth=5)
-    #LL=RandomForestClassifier(max_depth=5,random_state=0),
-    # LL=AdaBoostClassifier()
-    # LL=SVC(kernel="linear")
-    # LL= GaussianNB()
-    # LL= QuadraticDiscriminantAnalysis()
-    # LL=  SVC()
-    # LL=GaussianProcessClassifier()
-
-
-
-    # PT='/data/PROJECTS/marcoMS/RadiomicsAppliedtoPhaseContrast/link_NEWDATASET_TDCS/radiomic/Man'
-    # for i in range(90, -1, -10):
-    #     GAD=myLerner()
-    #     list_of_strings = create_list_of_strings(Max=100,Min=i)
-    #     P= pn.Pathable(f'{PT}/results_K3{100-len(list_of_strings):04d}/results.csv')
-    #     GAD.setX(f'{PT}/dataframeXaug.json')
-    #     GAD.X=GAD.X.sort_index()
-    #     MS=[]
-    #     for t in GAD.X.index:
-            
-    #         if 'MS' in t:
-    #             y=1
- 
-    #         else:
-    #             y=0
-    #         MS.append(y)
-
-    #     Y=pd.DataFrame(MS,index=GAD.X.index)
-    #     GAD.Y=Y
-    #     # removing some instances
-    #     for aa in list_of_strings:
-    #         GAD.Y.drop(GAD.Y.filter(like=aa,axis=0).index,inplace=True)
-    #         GAD.X.drop(GAD.X.filter(like=aa,axis=0).index,inplace=True)
-
-
-    #     GAD.selectKBestNumber=3
-    #     GAD.selectKBestReplicas=10
-    #     GAD.trainingReplicas=100
-    #     GAD.validationReplicas=5
-    #     GAD.selectKBesttrainsplit=0.9
-
-
-    #     GAD.ml=LL
-
-    #     P.ensureDirectoryExistence()
-    #     GAD.resultFile=P.getPosition()
-    #     GAD.addSubset(like="FOS.Signal",name="FOSSignal")
-    #     GAD.calculate()
-    #     GAD.saveResults()
-    #     GAD.writeSubsetsFeaturesName()
+        X=pd.concat((X,GAD.X.loc[index]))
+        Y=pd.concat((Y,pd.DataFrame([rc]*len(index),index=index)))
+    GAD.X=X
+    GAD.Y=Y
+    GAD.checkResultsFeatures('/data/MYDATA/ANO-INT/ECRresults/MAX/GINI20.pkl','/g/P/')
