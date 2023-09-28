@@ -123,23 +123,22 @@ class Learner:
             d.close()
             P.undo()
 
-    def checkResultsFeatures(self,resultfile,OUT=None):
+    def checkResultsFeatures(self,resultfile,OUT=None,conf=None):
         a=pn.readPkl(resultfile)
         f1=self.Y[self.Y.iloc[:,0]==1].index
         f0=self.Y[self.Y.iloc[:,0]==0].index
-
+        O=[]
         for f in a[0][0]['original_results']['features']:
-            X0=GAD.X.loc[f0,f]
-            X1=GAD.X.loc[f1,f]
-            Y=GAD.Y
+            X0=self.X.loc[f0,f]
+            X1=self.X.loc[f1,f]
             if OUT is not None:
                 out=f'{OUT}{f}.png'
                 pn.Pathable(out).ensureDirectoryExistence()
             else:
                 out=None
             p,m0,m1,fig=self.evaluateFeatures2(X0.to_numpy().squeeze(),X1.to_numpy().squeeze(),{'title':f,'fn':out})
-
-        return True
+            O.append([p,m0,m1,fig])
+        return O
 
 
     def __calc__(self):
