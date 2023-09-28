@@ -27,6 +27,7 @@ class Learner:
         self.ml=KNeighborsClassifier(3)
         self.fs=f_oneway
         self.parallel=True
+        self.splitfunction=splitPandasDataset
         if x:
             self.X=x
         else:
@@ -151,8 +152,8 @@ class Learner:
             self.tmpSubsets.push(a)
             print(f"calculating subset {a['name']}")
             P=[]
-            
-            splits=splitPandasDataset(self.X.iloc[:,a["indexes"]],self.Y,train_ratio=self.trainingSplit,n=self.validationReplicas)
+            SPF=self.splitfunction
+            splits=SPF(self.X.iloc[:,a["indexes"]],self.Y,train_ratio=self.trainingSplit,n=self.validationReplicas)
             for split in splits:
                 xtr,ytr, xte,yte = split
                 ml=deepcopy(self.ml)
@@ -312,8 +313,7 @@ def splitPandasDatasetv1(dataX,dataY,train_ratio = 0.75,n=1):
     
 def splitPandasDataset(dataX,dataY,train_ratio = 0.75,n=1):
     GROUPS=groupingDA(dataX)
-    O=[]
-    
+    O=[]    
     for tr,te in StratifiedGroupKFold(n_splits=n,shuffle=True).split(dataX,dataY,groups=GROUPS):
         O.append([dataX.iloc[tr],dataY.iloc[tr],dataX.iloc[te],dataY.iloc[te]])
     if n==1:
