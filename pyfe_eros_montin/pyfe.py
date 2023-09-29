@@ -9,6 +9,13 @@ from pynico_eros_montin import pynico as pn
 from pydaug_eros_montin import pydaug as pda
 
 import pyable_eros_montin.dev as dev
+import toml
+
+with open('pyproject.toml', 'r') as f:
+    config = toml.load(f)
+ 
+# Access values from the config
+VERSION=config['project']['version']
 
 class FE():
     def __init__(self,image=None,roi=None,roiv=None,PT=None,options=None) -> None:

@@ -1,4 +1,10 @@
-VERSION="0.0.3"
+import toml
+
+with open('pyproject.toml', 'r') as f:
+    config = toml.load(f)
+ 
+# Access values from the config
+VERSION=config['project']['version']
 import multiprocessing
 from pynico_eros_montin import pynico as pn
 import pandas as pd
@@ -21,13 +27,14 @@ class Learner:
         self.selectKBestNumber=4
         self.selectKBesttrainsplit=0.8
         self.trainingReplicas=100
+        self.cv=5
         self.trainingSplit=0.8
         self.className=['0','1']
         self.validationReplicas=10
         self.ml=KNeighborsClassifier(3)
         self.fs=f_oneway
         self.parallel=True
-        self.splitfunction=splitPandasDataset
+        self.splitfunction=splitPandasDatasetStratifiedGroupKFold
         if x:
             self.X=x
         else:
@@ -143,7 +150,7 @@ class Learner:
 
 
     def __calc__(self):
-        return testDataACC
+        return classification10
 
     def calculate(self):
         while self.Subsets.size()>0:
@@ -159,7 +166,7 @@ class Learner:
                 ml=deepcopy(self.ml)
                 NR=self.trainingReplicas
                 name=a["name"]
-                other={"cv":5,"n_jobs":1}
+                other={"cv":5,"n_jobs":1,"splitfunction":self.splitfunction}
                 P.append([xtr,ytr,ml,NR,xte,yte,name,other])
             
             if self.parallel:
@@ -301,7 +308,7 @@ def splitPandasDatasetv0(dataX,dataY,train_ratio = 0.75):
     return x_train,y_train, x_test, y_test
 from sklearn.model_selection import GroupShuffleSplit,GroupKFold,StratifiedGroupKFold
 
-def splitPandasDatasetv1(dataX,dataY,train_ratio = 0.75,n=1):
+def splitPandasDatasetGroupShuffleSplit(dataX,dataY,train_ratio = 0.75,n=1):
     GROUPS=groupingDA(dataX)
     O=[]
     for tr,te in GroupShuffleSplit(n_splits=n,train_size=train_ratio).split(dataX,dataY,groups=GROUPS):
@@ -311,7 +318,7 @@ def splitPandasDatasetv1(dataX,dataY,train_ratio = 0.75,n=1):
     else:
         return O
     
-def splitPandasDataset(dataX,dataY,train_ratio = 0.75,n=1):
+def splitPandasDatasetStratifiedGroupKFold(dataX,dataY,train_ratio = 0.75,n=1):
     GROUPS=groupingDA(dataX)
     O=[]    
     for tr,te in StratifiedGroupKFold(n_splits=n,shuffle=True).split(dataX,dataY,groups=GROUPS):
@@ -360,12 +367,12 @@ import numpy as np
 # sfs=SequentialFeatureSelector(KNeighborsClassifier(3), n_features_to_select=6)
 from sklearn.preprocessing import StandardScaler
 
-def sfs(X,Y,training_split=0.8,NF=6,NR=5,direction="backward",ml=KNeighborsClassifier(3),n_jobs=2,ncv=20,scale=False):
+def sfs(X,Y,training_split=0.8,NF=6,NR=5,direction="backward",ml=KNeighborsClassifier(3),n_jobs=2,ncv=20,scale=False,splitfunction=splitPandasDatasetGroupShuffleSplit):
     K={}
     P=[]
     #prepare the structure for the multi process
     for _ in range(NR):
-        tx,ty,*_=splitPandasDataset(X,Y,train_ratio=training_split)
+        tx,ty,*_=splitfunction(X,Y,train_ratio=training_split)
         if scale:
             Xva=pd.DataFrame(StandardScaler().fit_transform(tx))
         else:    
@@ -456,11 +463,11 @@ from sklearn.feature_selection import SelectKBest
 
 import numpy as np
 
-def selectSubsetClassif(x,y,thetype=f_oneway,train_ratio=0.75,nr=10,n=None,index=None):
+def selectSubsetClassif(x,y,thetype=f_oneway,train_ratio=0.75,nr=10,n=None,index=None,splitfunction=splitPandasDatasetGroupShuffleSplit):
     K={}
 
     for aa in range(nr):
-        tx,ty,*_=splitPandasDataset(x,y,train_ratio=train_ratio)
+        tx,ty,*_=splitfunction(x,y,train_ratio=train_ratio)
         Xva=pd.DataFrame(StandardScaler().fit_transform(tx))
         Xva=Xva.interpolate()
         Xva=Xva.fillna(0)
@@ -518,68 +525,123 @@ def testPrediction(Ygt,Yhat):
     "fn":fn_,
     "auc":auc}
     return o
-def testDataACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None,other=None):
-    out={"test":{"tn":[], "tp":[], "fp":[], "fn":[],"sensitivity":[],"specificity":[],"accuracy":[], "auc":[]},
-        "validation":{"tn":[], "tp":[], "fp":[], "fn":[],"sensitivity":[],"specificity":[],"accuracy":[], "auc":[]},
-        "model":None,"model_number":[],"features":list(X.columns),"name":name}
+
+from sklearn.metrics import confusion_matrix as CM
+
+from pynico_eros_montin import pynico as pn
+# Read the Excel file into a Pandas DataFrame
+# from xgboost import XGBClassifier
+from scipy.stats.contingency import relative_risk as r_f
+from scipy.stats.contingency import odds_ratio as o_f
+import sklearn.metrics as metrics
+
+eps=1e-6
+def binaryPredictionEvaluation(gt,test):
   
-    if(Xval is not None):
-        VAL=True
+  """
+  Calculates all the statistical measurements from a confusion matrix.
+
+  Args:
+    gt is the ground truth
+    test is the test values
+
+  Returns:
+    A dictionary of statistical measurements.
+  """
+  confusion_matrix=np.float32(CM(gt,test))
+  # Get the number of data points.
+  n = confusion_matrix.sum()
+
+  # Get the true positives, false positives, false negatives, and true negatives.
+  true_positives = confusion_matrix[0, 0]
+  false_positives = confusion_matrix[0, 1]
+  false_negatives = confusion_matrix[1, 0]
+  true_negatives = confusion_matrix[1, 1]
+
+  # Calculate the accuracy.
+  accuracy = (true_positives + true_negatives) / n
+
+  # Calculate the precision.
+  precision = true_positives / (true_positives + false_positives+eps)
+
+  # Calculate the recall.
+  recall = true_positives / (true_positives + false_negatives+eps)
+
+  # Calculate the F1 score.
+  f1 = 2 * (precision * recall) / (precision + recall+eps)
+
+  # Calculate the specificity.
+  specificity = true_negatives / (true_negatives + false_positives+eps)
+
+  # Calculate the Matthews correlation coefficient (MCC).
+  mcc = (true_positives * true_negatives - false_positives * false_negatives) / (
+      np.sqrt((true_positives + false_positives) * (true_positives + false_negatives) * (true_negatives + false_positives) * (true_negatives + false_negatives))+eps)
+
+  # Calculate the error rate.
+  error_rate = (false_positives + false_negatives) / n
+ 
+ # Calculate the relative risk.
+  
+#   A=[a if a>0 else 1 for a in A]
+  try:
+    relative_risk = r_f(*list(confusion_matrix.astype(int).ravel())).relative_risk
+    if np.isinf(relative_risk):
+        raise Exception()
+  except:
+    relative_risk =np.nan
+
+  # Calculate the odds ratio.
+#   if ((false_negatives==0) or (true_negatives==0)):
+  try:
+    odds_ratio = o_f(list(confusion_matrix.astype(int))).statistic
+    if np.isinf(relative_risk):
+        raise Exception()
+  except:
+    odds_ratio =np.nan
 
 
-    accOut=0
-    for pp in range(replicas):
-        Xtr,Ytr,Xte,Ytest=splitPandasDataset(X.copy(),Y.copy(),0.75)
-        
-        SC=StandardScaler()
-        SC.fit(Xtr)
-        Xtr=pd.DataFrame(SC.transform(Xtr))
-        Xte=pd.DataFrame(StandardScaler().fit_transform(Xte))
-        Xte=Xte.fillna(0)
-        Xtr=Xtr.fillna(0)
-        ml.fit(Xtr.to_numpy(), Ytr.to_numpy().flatten())
-        Yhat=ml.predict(Xte.to_numpy())
-        try:
-            ot=testPrediction(Ytest.to_numpy().flatten(),Yhat.flatten())
-            tacc=ot["accuracy"]
-            out["test"]["accuracy"].append(ot["accuracy"])
-            out["test"]["sensitivity"].append(ot["sensitivity"])
-            out["test"]["specificity"].append(ot["specificity"])
-            out["test"]["tn"].append(ot["tn"])
-            out["test"]["tp"].append(ot["tp"])
-            out["test"]["fp"].append(ot["fp"])
-            out["test"]["fn"].append(ot["fn"])
-            out["test"]["auc"].append(ot["auc"])            
-            if tacc>accOut+1e-5:
-                accOut=tacc
-                out["model"]=deepcopy(ml)
-                out["model_number"].append(pp)
-                out["modelscaler"]=SC
+#   else:
+    #   odds_ratio =np.nan
+
+  # Calculate the sensitivity.
+  sensitivity = true_positives / ((true_positives + false_negatives)+eps)
+
+  # Calculate the specificity.
+  specificity = true_negatives / ((true_negatives + false_positives)+eps)
+
+  # Calculate the AUC.
+  auc = metrics.roc_auc_score(gt,test)
+
+  # Calculate the AUC threshold.
+  fpr, tpr, thresholds=metrics.roc_curve(gt,test)
+  optimal_idx = np.argmax(tpr - fpr)
+  auc_threshold = thresholds[optimal_idx]
+  
+
+  # Return 
+  # Return the dictionary of statistical measurements.
+  return {
+      "true_negatives": true_negatives/n,
+      "true_positives": true_positives/n,
+      "false_negatives": false_negatives/n,
+      "false_positives": false_positives/n,
+
+      "accuracy": accuracy,
+      "precision": precision,
+      "recall": recall,
+      "f1": f1,
+      "specificity": specificity,
+      "mcc": mcc,
+      "error_rate": error_rate,
+            "relative_risk": relative_risk,
+      "odds_ratio": odds_ratio,
+            "sensitivity": sensitivity,
+      "specificity": specificity,
+      "auc": auc,
+      "auc_threshold": auc_threshold,
+  }
 
 
-                if VAL:
-                    try:
-                        Xva=pd.DataFrame(SC.transform(Xval))
-                        Xva=Xva.fillna(0)
-                        Yhval=out["model"].predict(Xva.to_numpy())
-                        ot =testPrediction(Yval.to_numpy().flatten(), Yhval.flatten())
-                        out["validation"]["accuracy"].append(ot["accuracy"])
-                        out["validation"]["sensitivity"].append(ot["sensitivity"])
-                        out["validation"]["specificity"].append(ot["specificity"])
-                        out["validation"]["tn"].append(ot["tn"])
-                        out["validation"]["tp"].append(ot["tp"])
-                        out["validation"]["fp"].append(ot["fp"])
-                        out["validation"]["fn"].append(ot["fn"])
-                        out["validation"]["auc"].append(ot["auc"])
-            
-                    except:
-                        pass
-
-            
-        except:
-            pass
-
-    return out
 from sklearn.metrics import mean_squared_error, r2_score
 def testRegressorACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None,other=None):
     out={"test":{"error":[], "r2":[], "score":[]},
@@ -594,7 +656,7 @@ def testRegressorACC(X,Y,ml = None,replicas=100,Xval=None,Yval=None,name=None,ot
 
     errOut=np.inf
     for pp in range(replicas):
-        Xtr,Ytr,Xte,Ytest=splitPandasDataset(X.copy(),Y.copy(),0.75,n=1)
+        Xtr,Ytr,Xte,Ytest=splitPandasDatasetGroupShuffleSplit(X.copy(),Y.copy(),0.75,n=1)
         Xtr=pd.DataFrame(StandardScaler().fit_transform(Xtr))
         Xte=pd.DataFrame(StandardScaler().fit_transform(Xte))
         Xte=Xte.fillna(0)
@@ -669,7 +731,7 @@ from sklearn.model_selection import GroupShuffleSplit
 def classification10(X,Y,ml = None,replicas=5,Xval=None,Yval=None,name=None,other={}):
     print((Y==0).sum(),(Y==1).sum())
     out={"test":{"accuracy":[]},
-        "validation":{"tn":[], "tp":[], "fp":[], "fn":[],"sensitivity":[],"specificity":[],"accuracy":[], "auc":[]},
+        "validation":{},
         "model":None,"model_number":[],"features":list(X.columns),"name":name}
     _X=X.interpolate()
     _X=_X.fillna(0)
@@ -679,15 +741,18 @@ def classification10(X,Y,ml = None,replicas=5,Xval=None,Yval=None,name=None,othe
     n_jobs=2
     if 'n_jobs' in other.keys():
         n_jobs=other['n_jobs']
+    splitfunction=splitPandasDatasetStratifiedGroupKFold
+    if 'splitfunction' in other.keys():
+        splitfunction=other['splitgunciton']
+
     bestacc=-1
     GROUPS=groupingDA(_X)
-    skf=StratifiedGroupKFold(n_splits=cv,shuffle=True)
+    skf=splitfunction(n_splits=cv,shuffle=True)
     # skf = GroupShuffleSplit(n_splits=cv,test_size=0.2)
     for pp in range(replicas):
         #make a scikit pipeline
         clf = make_pipeline(StandardScaler(), ml)
         #cross validate
-
         test_acc=cross_validate(clf, _X.to_numpy(), Y.to_numpy().flatten(), cv=skf,n_jobs=n_jobs,return_estimator=True,groups=GROUPS)
         #select the most accurate model
         bestmodel=np.argmax(np.array(test_acc['test_score']))
@@ -695,44 +760,40 @@ def classification10(X,Y,ml = None,replicas=5,Xval=None,Yval=None,name=None,othe
         if out["test"]["accuracy"][-1][bestmodel]>bestacc:
             bestacc=out["test"]["accuracy"][-1][bestmodel]
             Ypred=test_acc['estimator'][bestmodel].predict(Xval)
-            ot =testPrediction(Yval.to_numpy().flatten(), Ypred.flatten())
-            out["validation"]["accuracy"].append(ot["accuracy"])
-            out["validation"]["sensitivity"].append(ot["sensitivity"])
-            out["validation"]["specificity"].append(ot["specificity"])
-            out["validation"]["tn"].append(ot["tn"])
-            out["validation"]["tp"].append(ot["tp"])
-            out["validation"]["fp"].append(ot["fp"])
-            out["validation"]["fn"].append(ot["fn"])
-            out["validation"]["auc"].append(ot["auc"])
+            ot =binaryPredictionEvaluation(Yval.to_numpy().flatten(), Ypred.flatten())
+            for k,v in ot.items():
+                if not k in out['validation']:
+                    out['validation'][k]=[]
+                out['validation'][k].append(v)
             out['model']=test_acc['estimator'][int(bestacc)]
     return out
 
-if __name__=="__main__":
-    GAD=BinaryLearner()
-    GAD.setX('/data/MYDATA/ANO-INT/extraction_Max.json')
+# if __name__=="__main__":
+#     GAD=BinaryLearner()
+#     GAD.setX('/data/MYDATA/ANO-INT/extraction_Max.json')
 
-    risposta=pd.read_csv('/data/MYDATA/ANO-INT/risposta.csv')
+#     risposta=pd.read_csv('/data/MYDATA/ANO-INT/risposta.csv')
 
-    Y=pd.DataFrame()
-    X=pd.DataFrame()
-    GAD.X.interpolate(inplace=True)
-    GAD.X.fillna(0,inplace=True)
+#     Y=pd.DataFrame()
+#     X=pd.DataFrame()
+#     GAD.X.interpolate(inplace=True)
+#     GAD.X.fillna(0,inplace=True)
 
-    # filter the patients are in the study after the review
-    N1=1
-    N2=1
-    for pz,rc in zip(risposta['pz'],risposta['RC']):
+#     # filter the patients are in the study after the review
+#     N1=1
+#     N2=1
+#     for pz,rc in zip(risposta['pz'],risposta['RC']):
         
-        index=GAD.X.filter(like=pz,axis=0).index
+#         index=GAD.X.filter(like=pz,axis=0).index
         
-        if rc==1:
-            index=index[0:N1] 
-        if rc==0:
-            index=index[0:(N2)]
-        print(len(index))
+#         if rc==1:
+#             index=index[0:N1] 
+#         if rc==0:
+#             index=index[0:(N2)]
+#         print(len(index))
 
-        X=pd.concat((X,GAD.X.loc[index]))
-        Y=pd.concat((Y,pd.DataFrame([rc]*len(index),index=index)))
-    GAD.X=X
-    GAD.Y=Y
-    GAD.checkResultsFeatures('/data/MYDATA/ANO-INT/ECRresults/MAX/GINI20.pkl','/g/P/')
+#         X=pd.concat((X,GAD.X.loc[index]))
+#         Y=pd.concat((Y,pd.DataFrame([rc]*len(index),index=index)))
+#     GAD.X=X
+#     GAD.Y=Y
+#     GAD.checkResultsFeatures('/data/MYDATA/ANO-INT/ECRresults/MAX/GINI20.pkl','/g/P/')
