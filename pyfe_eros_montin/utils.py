@@ -75,7 +75,7 @@ except:
      from pyfe_eros_montin.pyml import *
 
 
-# if __name__=='__main__':
+if __name__=='__main__':
     # A=MakeJsonFe()
     # D=A.getDictionary()
     # o=pn.Pathable('/g/a.json')
