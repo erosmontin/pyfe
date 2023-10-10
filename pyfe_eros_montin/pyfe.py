@@ -314,8 +314,10 @@ def theF(X,d):
 def computeRow(line,d):
     out={}
     for x in line:
-        
-        TD=[[s["type"].lower(),s["options"],s["name"]] for s in x["groups"]]
+        if isinstance(x["groups"],list):
+            TD=[[s["type"].lower(),s["options"],s["name"]] for s in x["groups"]]
+        else:
+            TD=[[s["type"].lower(),s["options"],s["name"]] for s in [x["groups"]]]
         for a,o,name in TD:
             if a=="ss":
                 L=SS(d)
@@ -346,9 +348,59 @@ def computeRow(line,d):
 import pyfe_eros_montin.utils as utils
 
 if __name__=="__main__":
-    A=utils.MakeJsonFe()
-    D=A.getDictionary()
-    o=pn.Pathable('/g/a.json')
-    o.writeJson({"dimension":2,"dataset":D})
-    p=exrtactMyFeaturesToPandas(o.getPosition(),2,3)
-    p.to_json('/g/extr.json')
+    # A=utils.MakeJsonFe()
+    # D=A.getDictionary()
+    # o=pn.Pathable('/g/a.json')
+    # o.writeJson({"dimension":2,"dataset":D})
+    # p=exrtactMyFeaturesToPandas(o.getPosition(),2,3)
+    # p.to_json('/g/extr.json')
+
+
+    roilist=[]
+    ids=[]
+    imageslist=[]
+
+    for tkr in ['TKR','NonTKR']:
+        S=pn.Pathable(f'/data/MYDATA/Eros_143TKR_143NonTKR/2_Label_Maps_Remapped/{tkr}/9003380.nii.gz')
+        for l in S.getFilesInPathByExtension()[0:50]:
+            L=pn.Pathable(l)
+            r=L.getPosition()
+            roilist.append([r])
+            L.renamePath('2_Label_Maps_Remapped','4_TSE_SAG_data')
+            if not L.exists():
+                #remove the roi because there's not the associated image
+                roilist.pop()
+                break
+            im=[]
+            im.append(L.getPosition())
+            ids.append(f'_{tkr}_{L.getFileName()}')
+            imageslist.append(im)
+
+    CONF='CONF/TSE/feconf.json'
+    EXTRACTION='CONF/TSE/extraction.json'
+    P= pn.Pathable('CONF/TSE/results.csv')
+
+    if not pn.Pathable(EXTRACTION).exists():
+        DIMENSION=3
+        method={'rois_roivalues':'cross','images_confs':'cross','images_rois':'cross'}
+        A=utils.MakeJsonFe(method=method)
+        A.imageslist=imageslist
+        A.roislist=roilist
+        A.ids=ids
+        omo={"min":0,"max":1000,"bin":32}
+        
+        MO=[
+        {"type":"FOS","options":omo,"name":"FOS32"},
+        
+            {"type":"GLCM","options":omo,"name":"GLCM32"},
+            {"type":"GLRLM","options":omo,"name":"GLRLM32"},
+        
+            {"type":"SS","options":None,"name":"SS_1"}]
+        A.confslist=MO
+        A.roisvalueslist=[10,20,30,40,50,60]
+        D=A.getDictionary()
+        o=pn.Pathable(CONF)
+        o.ensureDirectoryExistence()
+        o.writeJson({"dimension":DIMENSION,"dataset":D})
+        p=exrtactMyFeaturesToPandas(o.getPosition(),DIMENSION,3,parallel=False)
+        p.to_json(EXTRACTION)

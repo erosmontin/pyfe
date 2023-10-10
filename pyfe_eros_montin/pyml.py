@@ -331,36 +331,6 @@ def splitPandasDatasetStratifiedGroupKFold(dataX,dataY,train_ratio = 0.75,n=1):
 
 
 
-# def splitPandasDatasetRegression(dataX,dataY,train_ratio = 0.75):
-#     # train is now 75% of the entire data set
-#     # the _junk suffix means that we drop that variable completely
-#     tmpX=deepcopy(dataX)
-#     tmpY=deepcopy(dataY)
-#     l=dataX.filter(like='aug',axis=0).index
-#     tmpX=tmpX.drop(l)
-#     tmpY=tmpY.drop(l)
-#     x_train, x_test, y_train, y_test = train_test_split(tmpX, tmpY, test_size=1 - train_ratio)
-
-#     L=x_train.index
-#     LT=x_test.index
-
-#     if len(l)>0: # if the dataset is augmnted
-#         for a in L:
-#             x=dataX.filter(like=a+'-aug',axis=0)
-#             y=dataY.filter(like=a+'-aug',axis=0)
-#             x_train=pd.concat([x_train,x])
-#             y_train=pd.concat([y_train,y])
-        
-#         for a in LT:
-#             x=dataX.filter(like=a+'-aug',axis=0)
-#             y=dataY.filter(like=a+'-aug',axis=0)
-#             x_test=pd.concat([x_test,x])
-#             y_test=pd.concat([y_test,y])
-
-
-#     return x_train,y_train, x_test, y_test
-
-
 
 from sklearn.feature_selection import SequentialFeatureSelector
 import numpy as np
