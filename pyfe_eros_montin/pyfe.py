@@ -14,10 +14,10 @@ import toml
 
 # print(__file__)
 # with open(f'{pn.Pathable(__file__).getPath()}/../pyproject.toml', 'r') as f:
-#     config = toml.load(f)
+# #     config = toml.load(f)
  
-# Access values from the config
-VERSION=config['project']['version']
+# # Access values from the config
+# VERSION=config['project']['version']
 
 class FE():
     def __init__(self,image=None,roi=None,roiv=None,PT=None,options=None) -> None:
