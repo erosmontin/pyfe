@@ -11,7 +11,7 @@ from pydaug_eros_montin import pydaug as pda
 import pyable_eros_montin.dev as dev
 import toml
 
-with open('pyproject.toml', 'r') as f:
+with open(f'{pn.Pathable(__file__).getPath()}/pyproject.toml', 'r') as f:
     config = toml.load(f)
  
 # Access values from the config
