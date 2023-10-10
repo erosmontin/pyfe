@@ -76,12 +76,12 @@ except:
 
 
 if __name__=='__main__':
-    # A=MakeJsonFe()
-    # D=A.getDictionary()
-    # o=pn.Pathable('/g/a.json')
-    # o.writeJson({"dimension":2,"dataset":D})
-    # p=exrtactMyFeaturesToPandas(o.getPosition(),2,3)
-    # p.to_json('/g/extr.json')
+    A=MakeJsonFe()
+    D=A.getDictionary()
+    o=pn.Pathable('/g/a.json')
+    o.writeJson({"dimension":2,"dataset":D})
+    p=exrtactMyFeaturesToPandas(o.getPosition(),2,3)
+    p.to_json('/g/extr.json')
 
     # roilist=[]
     # ids=[]
