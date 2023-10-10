@@ -12,9 +12,9 @@ import pyable_eros_montin.dev as dev
 import toml
 
 
-print(__file__)
-with open(f'{pn.Pathable(__file__).getPath()}/../pyproject.toml', 'r') as f:
-    config = toml.load(f)
+# print(__file__)
+# with open(f'{pn.Pathable(__file__).getPath()}/../pyproject.toml', 'r') as f:
+#     config = toml.load(f)
  
 # Access values from the config
 VERSION=config['project']['version']
