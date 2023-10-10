@@ -1,10 +1,10 @@
 import toml
 
-with open('pyproject.toml', 'r') as f:
-    config = toml.load(f)
+# with open('pyproject.toml', 'r') as f:
+#     config = toml.load(f)
  
-# Access values from the config
-VERSION=config['project']['version']
+# # Access values from the config
+# VERSION=config['project']['version']
 
 from itertools import permutations
 omo={"min":0,"max":32000,"bin":32}
