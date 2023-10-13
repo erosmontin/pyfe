@@ -12,6 +12,10 @@ pip install git+https://www.githu.com/erosmontin/pyfe
 
 
 ## Changhelog:
+1. version 0.1.3 **2023-10-13**
+    - pyradiomic PYRAD
+1. version 0.1.2 **2023-10-13**
+    - Benford Law FE {"type":"BENFORD","options":{"min":0,"max":5000,"bin":128},"name":"BENFORD"}
 1. version 0.1.0 **2023-09-20**
     - add the group name in the group = {"type":"FOS","options":{"min":0,"max":5000,"bin":128},**"name":"FOS32"**}
     - change the "name" field in the groups to type and that can be FOS,GLCM,GLRLM or SS {**"type":"FOS"**,"options":{"min":0,"max":5000,"bin":128},"name":"FOS32"}

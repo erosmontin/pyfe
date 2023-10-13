@@ -207,7 +207,126 @@ class GLRLM(TEXTURES):
             out =self.__execute__(os.path.join(basepath,"bld/libfe2dglrlm.so"),args,moredomain + "GLRLM_" + str(self.Options["radius"]))
 
         return out
+import radiomics.featureextractor as prsfe
+import pyable_eros_montin.imaginable as ima
+class PYRAD(TEXTURES):
+    def __init__(self, image=None, roi=None, roiv=None, PT=None, options=None) -> None:
+        super().__init__(image, roi, roiv, PT, options)
+        self.featurestype=['firstorder','shape','glcm','glrlm','glszm','gldm','ngtdm']
+    
+    def getPYRAD(self):
+        v=self.getROIvalue()
+        im=ima.Imaginable(self.getImage())
+        roi=ima.Roiable(self.getROI(),roivalue=v)
+
+
+#   - distances [[1]]: List of integers. This specifies the distances between the center voxel and the neighbor, for which
+#     angles should be generated.
+#   - symmetricalGLCM [True]: boolean, indicates whether co-occurrences should be assessed in two directions per angle,
+#     which results in a symmetrical matrix, with equal distributions for :math:`i` and :math:`j`. A symmetrical matrix
+#     corresponds to the GLCM as defined by Haralick et al.
+#   - weightingNorm [None]: string, indicates which norm should be used when applying distance weighting.
+#     Enumerated setting, possible values:
+
+#     - 'manhattan': first order norm
+#     - 'euclidean': second order norm
+#     - 'infinity': infinity norm.
+#     - 'no_weighting': GLCMs are weighted by factor 1 and summed
+#     - None: Applies no weighting, mean of values calculated on separate matrices is returned.
+
+        if self.Options["min"]=='N':
+            self.Options["min"]=im.getMinimumValue()
+        if self.Options["max"]=='N':
+            self.Options["min"]=im.getMaximumValue()
+        settings = {
+                    'nbins': self.Options["bin"],
+                    'kernelRadius': self.Options["radius"],
+                    'min': self.Options["min"],
+                    'minimum': self.Options["min"],
+                    'max': self.Options["max"],
+                    'maximum': self.Options["max"]
+                }
+
+        extractor = prsfe.RadiomicsFeatureExtractor(**settings)
+        extractor.enableAllFeatures()
+        extractor.enableAllImageTypes()
+        extractor.enableFeatureClassByName(self.featurestype)
+        P = extractor.execute(im.getImage(), roi.getImage())
         
+        O={}
+        for k,v in P.items():
+            if not('diagnostic' in k):
+                O[k]=float(v)
+                    
+        return O
+                
+
+    def getFeatures(self,moredomain=None):
+        MASK=''
+        if not moredomain:
+            moredomain=''
+
+        K=self.getPYRAD()
+        DOMAIN=moredomain + "PYRAD"
+        O={DOMAIN:K}
+        return O
+
+def geRoiValues(im,roi,v=1):
+    """_summary_
+    extravt the values in the roi
+
+    Args:
+        im (str): image position
+        roi (str): region position
+                """
+    IM=ima.Imaginable(im)
+    R=ima.Roiable(roi,roivalue=v)
+    return IM.getValuesInRoi(R)
+#pip install benford_py
+import benford as bf
+def getBenford(v):
+    L=bf.Benford((v,'roi'))
+    return L.F1D, L.SD
+def getChi(found,expected,values_out=False):
+    K=np.power((found-expected),2)/expected
+    if values_out:
+        K.index=[f'Chi_{i}' for i in K.index]
+        O=(np.sum(K),K)
+    else:
+        O=K
+    return O
+
+def getBefordStats(v):
+    df=pd.DataFrame(v,columns=['roi'])
+    bf.Benford((df,'roi'))
+
+class BenfordFE(BD2DecideFE):
+    def getFeatures(self,moredomain=None):
+        MASK=''
+        if not moredomain:
+            moredomain=''
+        
+        im=self.getImage()
+        roi=self.getROI()
+        v=self.getROIvalue()
+        roivalues=geRoiValues(im,roi,v)
+        #to dataframe
+        roivalues=[float(x) for x in roivalues]
+        df=pd.DataFrame(roivalues,columns=['roi'])
+        df.replace([np.inf, -np.inf], np.nan, inplace=True)
+        df.dropna(inplace=True)
+        
+        (BF,SD)=getBenford(df)
+
+        BF.sort_index(inplace=True)
+        Chi,K=getChi(BF.Found,BF.Expected,True)
+        DOMAIN=moredomain + "Benford"
+        O={DOMAIN:K.to_dict()}
+        O[DOMAIN]['Chi_stat']=Chi
+        for k,v in SD.AbsDif.to_dict().items():
+            O[DOMAIN][f'AbsoluteDiff_{k}']=v
+        return O
+
 
 import multiprocessing
 def exrtactMyFeatures(jf,dimension,parallel=True):
@@ -306,9 +425,6 @@ def theF(X,d):
 
             ids.append(f'{X["id"]}-aug{n:04}')
 
-
-
-
     return r,ids
 
     
@@ -329,6 +445,10 @@ def computeRow(line,d):
                 L=GLCM(d)
             if a=="glrlm":
                 L=GLRLM(d)
+            if a=="benford":
+                L=BenfordFE(d)
+            if (a=="pyradiomic") or (a=="pyrad"):
+                L=PYRAD()
 
             L.setImage(x["image"])
             L.setROI(x["labelmap"])
@@ -349,59 +469,50 @@ def computeRow(line,d):
 
 
 if __name__=="__main__":
-    # A=utils.MakeJsonFe()
-    # D=A.getDictionary()
-    # o=pn.Pathable('/g/a.json')
-    # o.writeJson({"dimension":2,"dataset":D})
-    # p=exrtactMyFeaturesToPandas(o.getPosition(),2,3)
-    # p.to_json('/g/extr.json')
+    # PA=pd.DataFrame()
+    # C=pd.DataFrame()
+    # import pyable_eros_montin.imaginable as ima
+
+    # # from benfordslaw import benfordslaw
+    # a=pn.Pathable('/data/MYDATA/fulldixon-images/')
+    # for d in a.getDirectoriesInPath():
+    #     im=f'{d}/data/wo.nii'
+    #     roi=f'{d}/data/roi.nii.gz'
+    #     v=2
+    #     b=BenfordFE()
+    #     b.setImage(im)
+    #     b.setROI(roi)
+    #     b.setROIvalue(v)
+    #     F=b.getFeatures()
+    #     L=pd.DataFrame.from_dict(F,orient='index')
+    #     V=pn.Pathable(d+'/')
+    #     P=V.getLastPath()
+    #     L.index=[P]
+    #     if P[0]=='P':
+    #         PA=pd.concat((PA,L))
+    #     else:
+    #         C=pd.concat((C,L))
 
 
-    roilist=[]
-    ids=[]
-    imageslist=[]
+    # print(C.mean())
+    # print(PA.mean())
 
-    for tkr in ['TKR','NonTKR']:
-        S=pn.Pathable(f'/data/MYDATA/Eros_143TKR_143NonTKR/2_Label_Maps_Remapped/{tkr}/9003380.nii.gz')
-        for l in S.getFilesInPathByExtension()[0:50]:
-            L=pn.Pathable(l)
-            r=L.getPosition()
-            roilist.append([r])
-            L.renamePath('2_Label_Maps_Remapped','4_TSE_SAG_data')
-            if not L.exists():
-                #remove the roi because there's not the associated image
-                roilist.pop()
-                break
-            im=[]
-            im.append(L.getPosition())
-            ids.append(f'_{tkr}_{L.getFileName()}')
-            imageslist.append(im)
+    # import matplotlib.pyplot as plt
+    # for g in PA.columns:
+    #     plt.boxplot((C[g],PA[g]))
+    #     plt.title(g)
+    #     plt.pause(2)
 
-    CONF='CONF/TSE/feconf.json'
-    EXTRACTION='CONF/TSE/extraction.json'
-    P= pn.Pathable('CONF/TSE/results.csv')
 
-    if not pn.Pathable(EXTRACTION).exists():
-        DIMENSION=3
-        method={'rois_roivalues':'cross','images_confs':'cross','images_rois':'cross'}
-        A=utils.MakeJsonFe(method=method)
-        A.imageslist=imageslist
-        A.roislist=roilist
-        A.ids=ids
-        omo={"min":0,"max":1000,"bin":32}
-        
-        MO=[
-        {"type":"FOS","options":omo,"name":"FOS32"},
-        
-            {"type":"GLCM","options":omo,"name":"GLCM32"},
-            {"type":"GLRLM","options":omo,"name":"GLRLM32"},
-        
-            {"type":"SS","options":None,"name":"SS_1"}]
-        A.confslist=MO
-        A.roisvalueslist=[10,20,30,40,50,60]
-        D=A.getDictionary()
-        o=pn.Pathable(CONF)
-        o.ensureDirectoryExistence()
-        o.writeJson({"dimension":DIMENSION,"dataset":D})
-        p=exrtactMyFeaturesToPandas(o.getPosition(),DIMENSION,3,parallel=False)
-        p.to_json(EXTRACTION)
+
+    # Load the image and mask.
+    im='/data/MYDATA/fulldixon-images/C-1/data/wo.nii'
+    roi='/data/MYDATA/fulldixon-images/C-1/data/roi.nii.gz'
+  
+    b=PYRAD(3)
+    v=2
+    b.setImage(im)
+    b.setROI(roi)
+    b.setROIvalue(v)
+    F=b.getFeatures()
+    print(F)
