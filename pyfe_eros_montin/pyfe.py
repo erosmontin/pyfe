@@ -241,16 +241,25 @@ class PYRAD(TEXTURES):
         settings = {
                     'nbins': self.Options["bin"],
                     'kernelRadius': self.Options["radius"],
+                    'distances': [self.Options["radius"]],
                     'min': self.Options["min"],
                     'minimum': self.Options["min"],
                     'max': self.Options["max"],
                     'maximum': self.Options["max"]
                 }
+        #set min and max pyradiomics
+
 
         extractor = prsfe.RadiomicsFeatureExtractor(**settings)
         extractor.enableAllFeatures()
         extractor.enableAllImageTypes()
-        extractor.enableFeatureClassByName(self.featurestype)
+        # extractor.enableFeatureClassByName(self.featurestype)
+        #get extractor imagestypes
+        
+        # roi.resampleOnTargetImage(im)
+        if im.isImaginableInTheSameSpace(roi):
+            roi.resampleOnTargetImage(im)
+            
         P = extractor.execute(im.getImage(), roi.getImage())
         
         O={}
@@ -281,6 +290,8 @@ def geRoiValues(im,roi,v=1):
                 """
     IM=ima.Imaginable(im)
     R=ima.Roiable(roi,roivalue=v)
+    if IM.isImaginableInTheSameSpace(R):
+        R.resampleOnTargetImage(IM)
     return IM.getValuesInRoi(R)
 #pip install benford_py
 import benford as bf
@@ -354,16 +365,17 @@ def exrtactMyFeatures(jf,dimension,parallel=True):
     result=[]
     idx=[]
        
-
-    for r,id in res:
-        print(id)
-        if (isinstance(id,list)):
-            for rr,idr in zip(r,id):
-                result.append(rr)
-                idx.append(idr)
-        else:
-            result.append(r)
-            idx.append(id)
+    for r,id in res:   
+        
+        #if r is not empty append it to the result
+        if r:
+            if (isinstance(id,list)):
+                for rr,idr in zip(r,id):
+                    result.append(rr)
+                    idx.append(idr)
+            else:
+                result.append(r)
+                idx.append(id)
     return result,idx
 
 import pandas as pd
@@ -390,6 +402,7 @@ from pyable_eros_montin import imaginable
 import numpy as np
 import SimpleITK as sitk
 def theF(X,d):
+    # try:
     line=X["data"]
     r=[]
     ids=[]
@@ -424,7 +437,14 @@ def theF(X,d):
             r.append(computeRow(line2,d))
 
             ids.append(f'{X["id"]}-aug{n:04}')
+    #print exception Error
 
+
+    # except:
+    #     #print the image name
+    #     print(X["id"])
+    #     return r,ids
+        
     return r,ids
 
     
@@ -505,14 +525,63 @@ if __name__=="__main__":
 
 
 
-    # Load the image and mask.
-    im='/data/MYDATA/fulldixon-images/C-1/data/wo.nii'
-    roi='/data/MYDATA/fulldixon-images/C-1/data/roi.nii.gz'
+    # # Load the image and mask.
+    # im='/data/MYDATA/fulldixon-images/C-1/data/wo.nii'
+    # roi='/data/MYDATA/fulldixon-images/C-1/data/roi.nii.gz'
   
-    b=PYRAD(3)
-    v=2
-    b.setImage(im)
-    b.setROI(roi)
-    b.setROIvalue(v)
-    F=b.getFeatures()
-    print(F)
+    # b=PYRAD(3)
+    # v=2
+    # b.setImage(im)
+    # b.setROI(roi)
+    # b.setROIvalue(v)
+    # F=b.getFeatures()
+    # print(F)
+
+    import utils
+    roilist=[]
+    ids=[]
+    imageslist=[]
+
+    for tkr in ['NonTKR']:
+        S=pn.Pathable(f'/data/MYDATA/Eros_143TKR_143NonTKR/2_Label_Maps_Remapped/{tkr}/9003380.nii.gz')
+        for l in S.getFilesInPathByExtension()[0:100]:
+            L=pn.Pathable(l)
+            r=L.getPosition()
+            roilist.append([r])
+            L.renamePath('2_Label_Maps_Remapped','4_TSE_SAG_data')
+            if not L.exists():
+                #remove the roi because there's not the associated image
+                roilist.pop()
+                break
+            im=[]
+            im.append(L.getPosition())
+            ids.append(f'_{tkr}_{L.getFileName()}')
+            imageslist.append(im)
+
+    PT='CONF/002'
+    EXTRACTION=f'{PT}/extraction.json'
+    P= pn.Pathable(f'{PT}/results.csv')
+
+    DIMENSION=3
+    method={'rois_roivalues':'cross','images_confs':'cross','images_rois':'cross'}
+    A=utils.MakeJsonFe(method=method)
+    A.imageslist=imageslist
+    A.roislist=roilist
+    A.ids=ids
+    omo={"min":"N","max":"N","bin":32}
+    MO=[
+    {"type":"FOS","options":omo,"name":"FOSBD64"},
+    {"type":"SS","options":omo,"name":"SSBD"},
+    {"type":"PYRAD","options":omo,"name":"PYRAD"},
+    {"type":"benford","options":omo,"name":"BENFORD"},
+    ]
+
+
+    A.confslist=MO
+    A.roisvalueslist=[10,20,30,40,50,60]
+    D=A.getDictionary()
+    o=pn.Pathable(f'{PT}/feconf.json')
+    o.ensureDirectoryExistence()
+    o.writeJson({"dimension":DIMENSION,"dataset":D})
+    p=exrtactMyFeaturesToPandas(o.getPosition(),DIMENSION,3,False)
+    p.to_json(EXTRACTION)
