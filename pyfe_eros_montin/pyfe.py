@@ -237,7 +237,7 @@ class PYRAD(TEXTURES):
         if self.Options["min"]=='N':
             self.Options["min"]=im.getMinimumValue()
         if self.Options["max"]=='N':
-            self.Options["min"]=im.getMaximumValue()
+            self.Options["max"]=im.getMaximumValue()
         settings = {
                     'nbins': self.Options["bin"],
                     'kernelRadius': self.Options["radius"],

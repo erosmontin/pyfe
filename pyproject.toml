@@ -7,7 +7,7 @@ allow-direct-references = true
 
 [project]
 name = "pyfe_eros_montin"
-version = "0.1.4.0"
+version = "0.1.5.1"
 authors = [
   { name="Dr. Eros Montin, PhD", email="eros.montin@gmail.com" },
 ]
@@ -19,7 +19,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dependencies = ["scikit-learn","pandas","numpy", "pynico_eros_montin @ git+https://github.com/erosmontin/pynico.git","scipy","toml","benford_py"]
+dependencies = ["scikit-learn","pandas","numpy", "pynico_eros_montin @ git+https://github.com/erosmontin/pynico.git","scipy","toml","benford_py","trimesh"]
 
 [project.urls]
 "Homepage" = "https://github.com/erosmontin/pyfe"
