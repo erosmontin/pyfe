@@ -209,15 +209,24 @@ class GLRLM(TEXTURES):
         return out
 import radiomics.featureextractor as prsfe
 import pyable_eros_montin.imaginable as ima
+import warnings
+import radiomics
 class PYRAD(TEXTURES):
     def __init__(self, image=None, roi=None, roiv=None, PT=None, options=None) -> None:
         super().__init__(image, roi, roiv, PT, options)
         self.featurestype=['firstorder','shape','glcm','glrlm','glszm','gldm','ngtdm']
     
     def getPYRAD(self):
+        
         v=self.getROIvalue()
         im=ima.Imaginable(self.getImage())
         roi=ima.Roiable(self.getROI(),roivalue=v)
+        print(self.getImage())
+        
+        warnings.simplefilter('ignore', DeprecationWarning)
+        # logger = radiomics.logging.getLogger("radiomics")
+        # logger.setLevel(radiomics.logging.ERROR)
+        radiomics.setVerbosity(60)
 
 
 #   - distances [[1]]: List of integers. This specifies the distances between the center voxel and the neighbor, for which
@@ -256,17 +265,45 @@ class PYRAD(TEXTURES):
         # extractor.enableFeatureClassByName(self.featurestype)
         #get extractor imagestypes
         
-        # roi.resampleOnTargetImage(im)
-        if im.isImaginableInTheSameSpace(roi):
-            roi.resampleOnTargetImage(im)
-            
-        P = extractor.execute(im.getImage(), roi.getImage())
-        
-        O={}
-        for k,v in P.items():
-            if not('diagnostic' in k):
-                O[k]=float(v)
-                    
+        try:
+            if im.isImaginableInTheSameSpace(roi):
+                roi.resampleOnTargetImage(im)
+
+            if roi.getNumberOfNonZeroVoxels()>20:
+                # roi.resampleOnTargetImage(im)
+                P = extractor.execute(im.getImage(), roi.getImage())
+                O={}
+                for k,v in P.items():
+                    if not('diagnostic' in k):
+                        O[k]=float(v)
+            else:
+                p=roi.getImageAsNumpy()
+                if roi.getImageDimension()==3:
+                    p[1:10,1:10,1:10]=1
+                elif roi.getImageDimension()==2:
+                    p[1:10,1:10]=1
+                else:
+                    p[1:10]=1
+                roi.setImageFromNumpy(p)
+                P = extractor.execute(im.getImage(), roi.getImage())
+                O={}
+                for k,v in P.items():
+                    if not('diagnostic' in k):
+                        O[k]=np.nan
+        except:
+            p=roi.getImageAsNumpy()
+            if roi.getImageDimension()==3:
+                p[1:10,1:10,1:10]=1
+            elif roi.getImageDimension()==2:
+                p[1:10,1:10]=1
+            else:
+                p[1:10]=1
+            roi.setImageFromNumpy(p)
+            P = extractor.execute(im.getImage(), roi.getImage())
+            O={}
+            for k,v in P.items():
+                if not('diagnostic' in k):
+                    O[k]=np.nan
         return O
                 
 
@@ -457,38 +494,45 @@ def computeRow(line,d):
         else:
             TD=[[s["type"].lower(),s["options"],s["name"]] for s in [x["groups"]]]
         for a,o,name in TD:
-            if a=="ss":
-                L=SS(d)
-            if a=="fos":
-                L=FOS(d)
-            if a=="glcm":
-                L=GLCM(d)
-            if a=="glrlm":
-                L=GLRLM(d)
-            if a=="benford":
-                L=BenfordFE(d)
-            if (a=="pyradiomic") or (a=="pyrad"):
-                L=PYRAD()
+            try:
+                if a=="ss":
+                    L=SS(d)
+                if a=="fos":
+                    L=FOS(d)
+                if a=="glcm":
+                    L=GLCM(d)
+                if a=="glrlm":
+                    L=GLRLM(d)
+                if a=="benford":
+                    L=BenfordFE(d)
+                if (a=="pyradiomic") or (a=="pyrad"):
+                    L=PYRAD()
 
-            L.setImage(x["image"])
-            L.setROI(x["labelmap"])
+                L.setImage(x["image"])
+                L.setROI(x["labelmap"])
 
-            L.setROIvalue(x["labelmapvalue"])
-            L.setOptions(o)
-            f=L.getFeatures()
-            ft=list(f.keys())[0]
-            prefixname=x["groupPrefix"] +"_"+name
-            if not (prefixname in out.keys()):
-                out[prefixname]={}
-            if not (ft in out[prefixname].keys()):
-                out[prefixname][ft]={}
-            out[prefixname][ft]= f[ft]
+                L.setROIvalue(x["labelmapvalue"])
+                L.setOptions(o)
+                f=L.getFeatures()
+                ft=list(f.keys())[0]
+                prefixname=x["groupPrefix"] +"_"+name
+                if not (prefixname in out.keys()):
+                    out[prefixname]={}
+                if not (ft in out[prefixname].keys()):
+                    out[prefixname][ft]={}
+                out[prefixname][ft]= f[ft]
+            except:
+                with open('/g/tmp.txt','a') as fi:
+                    fi.write(f'{x["image"]},{x["labelmap"]},{x["labelmapvalue"]}\n')
+                fi.close()
+                break
         
 
     return out
 
 
 if __name__=="__main__":
+    pass
     # PA=pd.DataFrame()
     # C=pd.DataFrame()
     # import pyable_eros_montin.imaginable as ima
@@ -537,51 +581,60 @@ if __name__=="__main__":
     # F=b.getFeatures()
     # print(F)
 
-    import utils
-    roilist=[]
-    ids=[]
-    imageslist=[]
+    # import utils
+    # roilist=[]
+    # ids=[]
+    # imageslist=[]
 
-    for tkr in ['NonTKR']:
-        S=pn.Pathable(f'/data/MYDATA/Eros_143TKR_143NonTKR/2_Label_Maps_Remapped/{tkr}/9003380.nii.gz')
-        for l in S.getFilesInPathByExtension()[0:100]:
-            L=pn.Pathable(l)
-            r=L.getPosition()
-            roilist.append([r])
-            L.renamePath('2_Label_Maps_Remapped','4_TSE_SAG_data')
-            if not L.exists():
-                #remove the roi because there's not the associated image
-                roilist.pop()
-                break
-            im=[]
-            im.append(L.getPosition())
-            ids.append(f'_{tkr}_{L.getFileName()}')
-            imageslist.append(im)
+    # for tkr in ['TKR','NonTKR']:
+    #     S=pn.Pathable(f'/data/MYDATA/Eros_143TKR_143NonTKR/2_Label_Maps_Remapped/{tkr}/9003380.nii.gz')
+    #     for l in S.getFilesInPathByExtension()[:1]:
+    #         L=pn.Pathable(l)
+    #         r=L.getPosition()
+    #         roilist.append([r])
+    #         L.renamePath('2_Label_Maps_Remapped','4_TSE_SAG_data')
+    #         if not L.exists():
+    #             #remove the roi because there's not the associated image
+    #             roilist.pop()
+    #             break
+    #         im=[]
+    #         im.append(L.getPosition())
+    #         ids.append(f'_{tkr}_{L.getFileName()}')
+    #         imageslist.append(im)
 
-    PT='CONF/002'
-    EXTRACTION=f'{PT}/extraction.json'
-    P= pn.Pathable(f'{PT}/results.csv')
+    # PT='CONF/NO'
+    # EXTRACTION=f'{PT}/extraction.json'
+    # P= pn.Pathable(f'{PT}/results.csv')
 
-    DIMENSION=3
-    method={'rois_roivalues':'cross','images_confs':'cross','images_rois':'cross'}
-    A=utils.MakeJsonFe(method=method)
-    A.imageslist=imageslist
-    A.roislist=roilist
-    A.ids=ids
-    omo={"min":"N","max":"N","bin":32}
-    MO=[
-    {"type":"FOS","options":omo,"name":"FOSBD64"},
-    {"type":"SS","options":omo,"name":"SSBD"},
-    {"type":"PYRAD","options":omo,"name":"PYRAD"},
-    {"type":"benford","options":omo,"name":"BENFORD"},
-    ]
+    # DIMENSION=3
+    # method={'rois_roivalues':'cross','images_confs':'cross','images_rois':'cross'}
+    # A=utils.MakeJsonFe(method=method)
+    # A.imageslist=imageslist
+    # A.roislist=roilist
+    # A.ids=ids
+    # omo={"min":"N","max":"N","bin":128}
+    # MO=[
+    # # {"type":"FOS","options":omo,"name":"FOSBD64"},
+    # # {"type":"SS","options":omo,"name":"SSBD"},
+    # {"type":"PYRAD","options":omo,"name":"PYRAD"},
+    # # {"type":"benford","options":omo,"name":"BENFORD"},
+    # ]
 
 
-    A.confslist=MO
-    A.roisvalueslist=[10,20,30,40,50,60]
-    D=A.getDictionary()
-    o=pn.Pathable(f'{PT}/feconf.json')
-    o.ensureDirectoryExistence()
-    o.writeJson({"dimension":DIMENSION,"dataset":D})
-    p=exrtactMyFeaturesToPandas(o.getPosition(),DIMENSION,3,False)
-    p.to_json(EXTRACTION)
+    # A.confslist=MO
+    # # A.roisvalueslist=[10,20,30,40,50,60]
+    # A.roisvalueslist=[10,1]
+    # D=A.getDictionary()
+    # o=pn.Pathable(f'{PT}/feconf.json')
+    # o.ensureDirectoryExistence()
+    # o.writeJson({"dimension":DIMENSION,"dataset":D})
+    # p=exrtactMyFeaturesToPandas(o.getPosition(),DIMENSION,3,True)
+    # p.to_json(EXTRACTION)
+
+    # import pyfe_eros_montin.pyml as pyml
+
+    # L=pyml.BinaryLearner()
+    # L.setX(EXTRACTION)
+
+
+    # print(L.X)
