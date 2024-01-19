@@ -4,10 +4,10 @@ Features extraction and machine learning
 ## installation
 1. install this package
 1. compile [Features Extractor](https://github.com/erosmontin/FeaturesExtractor)
-1. copy bld directory in the libnrary path
+1. copy bld directory in the library path
 1. install [pyfe](https://www.githu.com/erosmontin/pyfe) or ask [Eros](eros.montin@gmail.com)
 ```
-pip install git+https://www.githu.com/erosmontin/pyfe
+pip install git+https://www.github.com/erosmontin/pyfe
 ```
 
 
