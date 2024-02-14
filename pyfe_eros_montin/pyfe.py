@@ -377,7 +377,7 @@ class BenfordFE(BD2DecideFE):
 
 
 import multiprocessing
-def exrtactMyFeatures(jf,dimension,parallel=True):
+def exrtactMyFeatures(jf,dimension,parallel=True,augonly=False,saveimages=None):
     if isinstance(jf,str):
         P=pn.Pathable(jf)
         if not P.exists():
@@ -385,19 +385,26 @@ def exrtactMyFeatures(jf,dimension,parallel=True):
         L=P.readJson()
     elif (isinstance(jf,dict)):
         L=jf
-    if dimension==3:
-        f=theF3
-    if dimension==2:
-        f=theF2
+    # if augonly:
+    #     if dimension==3:
+    #         f=theF3AUG
+    #     if dimension==2:
+    #         f=theF2AUG
+    # else:    
+    #     if dimension==3:
+    #         f=theF3
+    #     if dimension==2:
+    #         f=theF2
     # f(L["dataset"][0]) #THEDEBUGAREA
     if parallel:
+        from itertools import repeat
         with multiprocessing.Pool() as p:
-            res = p.map(f,(L["dataset"]))
+            res = p.starmap(theF,zip(L["dataset"],repeat(dimension),repeat(augonly),repeat(saveimages)))
         p.close()
     else:
         res=[]
         for l in L["dataset"]:
-            o=f(l)
+            o=theF(l,dimension,augonly,saveimages)
             res.append(o)
     result=[]
     idx=[]
@@ -416,63 +423,121 @@ def exrtactMyFeatures(jf,dimension,parallel=True):
     return result,idx
 
 import pandas as pd
-def exrtactMyFeaturesToPandas(jf,dimension,max_level=2,parallel=True):
-    r,ind=exrtactMyFeatures(jf,dimension,parallel)
+def exrtactMyFeaturesToPandas(jf,dimension,max_level=3,parallel=True,augonly=False,saveimages=None):
+    if saveimages!=None:
+        LL=pn.Pathable(saveimages)
+        LL.ensureDirectoryExistence()
+    r,ind=exrtactMyFeatures(jf,dimension,parallel,augonly=augonly,saveimages=saveimages)
     print("normalizing")
     X=pd.json_normalize(r,max_level=max_level)
     X.index=ind
     return X
 
-def pyfejsonFeaturesToPandas(xf,idf):
+def pyfejsonFeaturesToPandas(xf,idf,max_level=3):
     P=pn.Pathable(xf)
     I=pn.Pathable(idf)
     if P.exists():
-        X=pd.json_normalize(P.readJson(),max_level=2)
-        X.index=pd.json_normalize(I.readJson(),max_level=2)
+        X=pd.json_normalize(P.readJson(),max_level=max_level)
+        X.index=pd.json_normalize(I.readJson(),max_level=max_level)
     return X
 
-def theF3(X):
-    return theF(X,3)
-def theF2(X):
-    return theF(X,2)
+
+# def theF3(X):
+#     return theF(X,3)
+# def theF2(X):
+#     return theF(X,2)
+# def theF3AUG(X):
+#     return theF(X,3,True)
+# def theF2AUG(X):
+#     return theF(X,2,True)
+
 from pyable_eros_montin import imaginable
 import numpy as np
 import SimpleITK as sitk
-def theF(X,d):
+def theF(X,d,augonly=False,saveimages=None):
     # try:
     line=X["data"]
     r=[]
     ids=[]
-    r.append(computeRow(line,d))
-    ids.append(X["id"])
+    if not augonly:
+        r.append(computeRow(line,d))
+        ids.append(X["id"])
 
     if "augment" in X.keys():
         aug=X["augment"]
-        for n in range(aug["n"]):
-
-            R=[ np.random.uniform(low=l, high=h, size=1)[0] for l,h in aug["options"]["r"]]
-            T=[ np.random.uniform(low=l, high=h, size=1)[0] for l,h in aug["options"]["t"]]
+        scale=False
+        
+        if "r" in aug["options"].keys():
+            Rv=aug["options"]["r"]
+        else:
+            Rv=[[0,0]]*d
+        if "t" in aug["options"].keys():
+            Tv=aug["options"]["t"]
+        else:
+            Tv=[[0,0]]*d
+        
+        Sv=[[1,1]]*d
+        if "s" in aug["options"].keys():
+            Sv=aug["options"]["s"]
+            scale =True
+        
+        resample=[1,1,1]
+        resampleflag=False
+        if "resample" in aug["options"].keys():
+            resampleflag=True
+            resample=aug["options"]["resample"]
+            
+            
+        for n in range(aug["n"]):    
+            R=[ np.random.uniform(low=l, high=h, size=1)[0] for l,h in Rv]
+            T=[ np.random.uniform(low=l, high=h, size=1)[0] for l,h in Tv]
+            S=[1]*3
+            if scale:
+                S=[ np.random.uniform(low=l, high=h, size=1)[0] for l,h in Sv]
             line2 =deepcopy(line)
             G=pn.GarbageCollector()
             for i,x in enumerate(line2):
                 im,roi=x["image"],x["labelmap"]
-                print("----------",im,roi)
-                IM=imaginable.SITKImaginable(filename=im)
-                ROI=dev.LabelMapable(filename=roi)
-                IM.rotateImage(rotation=R,translation=T,interpolator=sitk.sitkBSpline)
-                ROI.rotateImage(rotation=R,translation=T,useNearestNeighborExtrapolator=True,interpolator=sitk.sitkNearestNeighbor)
+                IM=imaginable.Imaginable(filename=im)
+                ROI=imaginable.LabelMapable(filename=roi)
 
-                pn.Pathable(im)
-                imn=pn.Pathable(im).changePathToOSTemporary().changeFileNameRandom()
-                roin=pn.Pathable(roi).changePathToOSTemporary().changeFileNameRandom()
-                G.throw(imn.getPosition())
-                G.throw(roin.getPosition())
+                AFF=ima.create_affine_matrix(rotation=R,scaling=S)
+                
+                IM.transformImageAffine(AFF.flatten().tolist(),translation=T,interpolator=sitk.sitkBSpline)
+                ROI.transformImageAffine(AFF.flatten().tolist(),translation=T)
+                if resampleflag:
+                    IM.changeImageSpacing(resample)
+                    ROI.changeImageSpacing(resample)
+                
+                imn=pn.Pathable(im)
+                roin=pn.Pathable(roi)
+                if saveimages==None:
+                    imn.changePathToOSTemporary().changeFileNameRandom()
+                    roin.changePathToOSTemporary().changeFileNameRandom()
+                    G.throw(imn.getPosition())
+                    G.throw(roin.getPosition())
+                else:
+                    imn.changePath(saveimages)
+                    roin.changePath(saveimages)
+                    imn.addSuffix(f'-aug{n:04}')                    
+                    roin.addSuffix(f'-aug{n:04}')                    
+                    jj=imn.fork()
+                    jj.changeExtension('json')
+                    jj.writeJson({
+                        "rotation":R,
+                        "translation":T,
+                        "scaling":S,
+                        "resample":resample,
+                        "affine":AFF.flatten().tolist()
+                    })
+                    
+
+                    
                 IM.writeImageAs(imn.getPosition())
                 ROI.writeImageAs(roin.getPosition())
                 line2[i]["image"]=imn.getPosition()
                 line2[i]["labelmap"]=roin.getPosition()
             r.append(computeRow(line2,d))
-
             ids.append(f'{X["id"]}-aug{n:04}')
     #print exception Error
 
@@ -522,7 +587,8 @@ def computeRow(line,d):
                     out[prefixname][ft]={}
                 out[prefixname][ft]= f[ft]
             except:
-                with open('/g/tmp.txt','a') as fi:
+                f=pn.createTemporaryPathableFromFileName('a.txt')
+                with open(f,'a') as fi:
                     fi.write(f'{x["image"]},{x["labelmap"]},{x["labelmapvalue"]}\n')
                 fi.close()
                 break
@@ -533,108 +599,6 @@ def computeRow(line,d):
 
 if __name__=="__main__":
     pass
-    # PA=pd.DataFrame()
-    # C=pd.DataFrame()
-    # import pyable_eros_montin.imaginable as ima
-
-    # # from benfordslaw import benfordslaw
-    # a=pn.Pathable('/data/MYDATA/fulldixon-images/')
-    # for d in a.getDirectoriesInPath():
-    #     im=f'{d}/data/wo.nii'
-    #     roi=f'{d}/data/roi.nii.gz'
-    #     v=2
-    #     b=BenfordFE()
-    #     b.setImage(im)
-    #     b.setROI(roi)
-    #     b.setROIvalue(v)
-    #     F=b.getFeatures()
-    #     L=pd.DataFrame.from_dict(F,orient='index')
-    #     V=pn.Pathable(d+'/')
-    #     P=V.getLastPath()
-    #     L.index=[P]
-    #     if P[0]=='P':
-    #         PA=pd.concat((PA,L))
-    #     else:
-    #         C=pd.concat((C,L))
-
-
-    # print(C.mean())
-    # print(PA.mean())
-
-    # import matplotlib.pyplot as plt
-    # for g in PA.columns:
-    #     plt.boxplot((C[g],PA[g]))
-    #     plt.title(g)
-    #     plt.pause(2)
 
 
 
-    # # Load the image and mask.
-    # im='/data/MYDATA/fulldixon-images/C-1/data/wo.nii'
-    # roi='/data/MYDATA/fulldixon-images/C-1/data/roi.nii.gz'
-  
-    # b=PYRAD(3)
-    # v=2
-    # b.setImage(im)
-    # b.setROI(roi)
-    # b.setROIvalue(v)
-    # F=b.getFeatures()
-    # print(F)
-
-    # import utils
-    # roilist=[]
-    # ids=[]
-    # imageslist=[]
-
-    # for tkr in ['TKR','NonTKR']:
-    #     S=pn.Pathable(f'/data/MYDATA/Eros_143TKR_143NonTKR/2_Label_Maps_Remapped/{tkr}/9003380.nii.gz')
-    #     for l in S.getFilesInPathByExtension()[:1]:
-    #         L=pn.Pathable(l)
-    #         r=L.getPosition()
-    #         roilist.append([r])
-    #         L.renamePath('2_Label_Maps_Remapped','4_TSE_SAG_data')
-    #         if not L.exists():
-    #             #remove the roi because there's not the associated image
-    #             roilist.pop()
-    #             break
-    #         im=[]
-    #         im.append(L.getPosition())
-    #         ids.append(f'_{tkr}_{L.getFileName()}')
-    #         imageslist.append(im)
-
-    # PT='CONF/NO'
-    # EXTRACTION=f'{PT}/extraction.json'
-    # P= pn.Pathable(f'{PT}/results.csv')
-
-    # DIMENSION=3
-    # method={'rois_roivalues':'cross','images_confs':'cross','images_rois':'cross'}
-    # A=utils.MakeJsonFe(method=method)
-    # A.imageslist=imageslist
-    # A.roislist=roilist
-    # A.ids=ids
-    # omo={"min":"N","max":"N","bin":128}
-    # MO=[
-    # # {"type":"FOS","options":omo,"name":"FOSBD64"},
-    # # {"type":"SS","options":omo,"name":"SSBD"},
-    # {"type":"PYRAD","options":omo,"name":"PYRAD"},
-    # # {"type":"benford","options":omo,"name":"BENFORD"},
-    # ]
-
-
-    # A.confslist=MO
-    # # A.roisvalueslist=[10,20,30,40,50,60]
-    # A.roisvalueslist=[10,1]
-    # D=A.getDictionary()
-    # o=pn.Pathable(f'{PT}/feconf.json')
-    # o.ensureDirectoryExistence()
-    # o.writeJson({"dimension":DIMENSION,"dataset":D})
-    # p=exrtactMyFeaturesToPandas(o.getPosition(),DIMENSION,3,True)
-    # p.to_json(EXTRACTION)
-
-    # import pyfe_eros_montin.pyml as pyml
-
-    # L=pyml.BinaryLearner()
-    # L.setX(EXTRACTION)
-
-
-    # print(L.X)

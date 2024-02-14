@@ -11,7 +11,13 @@ omo={"min":0,"max":32000,"bin":32}
 omo2={"min":0,"max":32000,"bin":128}
 MO=[{"name":"FOS","options":omo},{"name":"FOS128","options":omo2},{"name":"GLCM","options":omo},{"name":"GLRLM","options":omo},{"name":"GLCM128","options":omo2},{"name":"GLRLM128","options":omo2}]
 
-
+def extractfeatures(imagelist,roilist,conflist,roisvaluelist,AUG,ids)->str:
+    #imagelist: list of list of strings =[['a','b'],['c',d]]
+    #roilist: list of list of strings =[['a','b'],['c',d]]
+    #conflist: list of list of strings =[['a','b'],['c',d]]
+    #TODO: check if the lists are the same length
+    
+    return True
 class MakeJsonFe():
     def __init__(self,method={'rois_roivalues':'cross','images_confs':'cross','images_rois':'cross'}) -> None:
     # def __init__(self,imageslist,roislist,roisvalueslist,confslist,method={'rois_roivalues':'dot','images_confs':'dot','images_rois':'dot'}) -> None:
@@ -28,14 +34,20 @@ class MakeJsonFe():
     def getDictionary(self):
         #let's see how is the situation with the rois
         ROIS=[]
+        manyrois=False
+        if len(self.roisvalueslist)>100:
+            manyrois=True
         if self.method['rois_roivalues']=='cross':
-            # we are going to mix ROIS x rv = (2,1) (2,1) => 4 rois x line
+            # we are going to mix ROIS x rv = (2,1) (3,) => 6 rois x line
             ROIS=[]
             for pa,a in enumerate(self.roislist):
                 line=[]
                 for pr,roi in enumerate(a):
                     for pv,value in enumerate(self.roisvalueslist):
-                            line.append([roi,value,f'R:{pr:02d}_RV:{pv:02d}'])
+                            if manyrois:
+                                line.append([roi,value,f'R:{pr:03d}_RV:{pv}'])
+                            else:
+                                line.append([roi,value,f'R:{pr:02d}_RV:{pv:02d}'])
                             print(line[-1][-1])
                             
                 ROIS.append(line)
@@ -63,7 +75,8 @@ class MakeJsonFe():
                 OUT.append(out)
                 
         return OUT
-
+    def makeAUG(self,n,r,t,s):
+        self.AUG={"n":n,"r":r,"t":t,"s":s}
 import pynico_eros_montin.pynico as pn
 try:
      #debug
@@ -76,12 +89,48 @@ except:
 
 
 if __name__=='__main__':
-    A=MakeJsonFe()
+    RESULTSOUTPUT='/g/CONF/005dess/'
+    a=pn.Pathable('/g/CONF/005dess/images.json')
+    L=a.readJson()
+    images=L["images"]
+    rois=L["rois"]
+    ids=L["ids"]
+    rv=[1,2,3,4,5,6,7]
+
+    # create the pyfe object
+
+
+    EXTRACTION=f'{RESULTSOUTPUT}/extraction.json'
+
+
+   
+    DIMENSION=3
+    method={'rois_roivalues':'cross','images_confs':'cross','images_rois':'cross'}
+    A=MakeJsonFe(method=method)
+    A.imageslist=images
+    A.roislist=rois
+    A.ids=ids
+    A.AUG={"n":2,"options":{
+        "r":[[-5,5]]*3,
+        "t":[[-5,5]]*3,
+        "s":[[0.9,1.1]]*3,
+        "noise":{ "type":"gaussian","options":{"mean":0,"std":0.1}},
+        "resample":[5,5,5]
+           }
+    }
+    conf={"min":"N","max":"N","bin":16}
+    CONF=[
+    {"type":"PYRAD","options":conf,"name":"PYRAD"},
+    # {"type":"benford","options":omo,"name":"BENFORD"},
+    ]
+    A.confslist=CONF
+    A.roisvalueslist=rv
     D=A.getDictionary()
-    o=pn.Pathable('/g/a.json')
-    o.writeJson({"dimension":2,"dataset":D})
-    p=exrtactMyFeaturesToPandas(o.getPosition(),2,3)
-    p.to_json('/g/extr.json')
+    o=pn.Pathable(f'{RESULTSOUTPUT}/feconf.json')
+    o.ensureDirectoryExistence()
+    o.writeJson({"dimension":DIMENSION,"dataset":D})
+    p=exrtactMyFeaturesToPandas(o.getPosition(),DIMENSION,3,parallel=False,augonly=True,saveimages='/g/im/')
+    p.to_json(EXTRACTION)
 
     # roilist=[]
     # ids=[]

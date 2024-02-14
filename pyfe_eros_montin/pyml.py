@@ -130,13 +130,17 @@ class Learner:
                     d.write(f'{f},{p},{m0},{m1}\n')
             d.close()
             P.undo()
-
-    def checkResultsFeatures(self,resultfile,OUT=None,conf=None):
+    def getVariableInTheFinalModel(self,resultfile):
         a=pn.readPkl(resultfile)
+        return a[0][0]['original_results']['features']
+    
+    def checkResultsFeatures(self,resultfile,OUT=None,conf=None):
+        
         f1=self.Y[self.Y.iloc[:,0]==1].index
         f0=self.Y[self.Y.iloc[:,0]==0].index
         O=[]
-        for f in a[0][0]['original_results']['features']:
+        features=self.getVaraibleInThefinalmodel(resultfile)
+        for f in features:
             X0=self.X.loc[f0,f]
             X1=self.X.loc[f1,f]
             if OUT is not None:
