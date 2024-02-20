@@ -129,9 +129,9 @@ if __name__=='__main__':
     o=pn.Pathable(f'{RESULTSOUTPUT}/feconf.json')
     o.ensureDirectoryExistence()
     o.writeJson({"dimension":DIMENSION,"dataset":D})
-    p=exrtactMyFeaturesToPandas(o.getPosition(),DIMENSION,3,parallel=False,augonly=True,saveimages='/g/im/')
-    p.to_json(EXTRACTION)
-
+    db=f'{RESULTSOUTPUT}/db.sqlite'
+    p=exrtactMyFeaturesToSQLlite(o.getPosition(),DIMENSION,3,parallel=False,augonly=False,saveimages='/g/im/',db=db,table_name='features')
+    
     # roilist=[]
     # ids=[]
     # imageslist=[]

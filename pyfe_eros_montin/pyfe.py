@@ -433,6 +433,118 @@ def exrtactMyFeaturesToPandas(jf,dimension,max_level=3,parallel=True,augonly=Fal
     X.index=ind
     return X
 
+
+import sqlite3
+def check_database(db=None):
+    if db is None:
+        db = 'default.db'
+    conn = sqlite3.connect(db)
+    return conn,{"db":db}
+
+def check_table(db=None, table_name='extraction'):
+    
+    conn,conf = check_database(db=db)
+    cursor = conn.cursor()
+
+    cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';")
+    result = cursor.fetchone()
+
+    if result:
+        print(f"Table '{table_name}' exists.")
+        #get the cursor
+        
+    else:
+        print(f"Table '{table_name}' does not exist. Creating it now.")
+        cursor.execute(f"""
+            CREATE TABLE {table_name} (
+                extraction_id string,
+                json_structure TEXT,
+                update_date TEXT
+            );
+        """)
+        conn.commit()
+        print(f"Table '{table_name}' created.")
+
+    
+    conf['table_name'] = table_name
+    return conn,conf
+
+def insert_into_table(db, table_name, extraction_id, json_structure):
+    conn,conf = check_table(db=db, table_name=table_name)
+    cursor = conn.cursor()
+
+    cursor.execute(f"""
+        INSERT INTO {table_name} (extraction_id, json_structure, update_date)
+        VALUES (?, ?, CURRENT_TIMESTAMP);
+    """, (extraction_id, json_structure))
+    conn.commit()
+    conn.close()
+    return conf
+
+
+def get_all_ids_in_task(jf):
+    return [d["id"] for d in jf["dataset"]]
+def filter_dataset_batches(jf,db,table_name):
+    conn,conf = check_table(db=db,table_name=table_name)
+    cursor = conn.cursor()
+    ids = []
+    for _id in get_all_ids_in_task(jf):
+        cursor.execute(f"SELECT extraction_id FROM {table_name} where extraction_id like ?",(_id,))
+        for r in cursor.fetchall():
+            ids.append(_id)
+    conn.close()
+    dataset = [d for d in jf["dataset"] if d["id"] not in ids]
+    jf["dataset"] = dataset
+    return jf
+import multiprocessing
+def dataset_to_datasetbatches(JF,dimension, parallel):    
+    dataset = JF['dataset']
+    if not parallel:
+        num_cores = 1
+    else:
+        num_cores = multiprocessing.cpu_count()
+    new_dataset = []
+    for i in range(0, len(dataset), num_cores):
+        batch = dataset[i:i+num_cores]
+        # process batch
+        j={"dimension":dimension,"dataset":batch}
+        new_dataset.append(j)
+    return new_dataset        
+def exrtactMyFeaturesToSQLlite(jf,dimension,max_level=3,parallel=True,augonly=False,saveimages=None,db=None,table_name='extraction',extraction_configurations=None,conf_table='conf'):
+    # create a database in memory in case user doesn't pass it as an argument
+    
+    conn_conf,conf_conf=check_table(db=db, table_name=conf_table)
+    
+    #search in the configuration if 
+    select_query = f"SELECT * FROM {conf_table}"
+    cursor = conn_conf.cursor()
+    cursor.execute(select_query, (table_name))
+    
+       
+    conn,conf=check_table(db=db, table_name=table_name)
+    db=conf['db']
+    table_name=conf['table_name']
+    if saveimages!=None:
+        LL=pn.Pathable(saveimages)
+        LL.ensureDirectoryExistence()
+    #read the json file and extract the features
+    JF=pn.Pathable(jf)
+    JF=JF.readJson()
+    
+    
+
+
+    # get the number of cores available
+    B=dataset_to_datasetbatches(JF, dimension,parallel)
+    for b in B:
+        b=filter_dataset_batches(b,db,table_name)
+        rs,inds=exrtactMyFeatures(b,dimension,parallel,augonly=augonly,saveimages=saveimages)
+        for r,ind in zip(rs,inds):
+            #insert into sqlite
+            insert_into_table(db=db, table_name=table_name, extraction_id=ind, json_structure=json.dumps(r))
+    print("normalizing")
+    return     
+
 def pyfejsonFeaturesToPandas(xf,idf,max_level=3):
     P=pn.Pathable(xf)
     I=pn.Pathable(idf)
