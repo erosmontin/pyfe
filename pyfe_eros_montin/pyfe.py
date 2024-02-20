@@ -399,7 +399,8 @@ def exrtactMyFeatures(jf,dimension,parallel=True,augonly=False,saveimages=None):
     if parallel:
         from itertools import repeat
         with multiprocessing.Pool() as p:
-            res = p.starmap(theF,zip(L["dataset"],repeat(dimension),repeat(augonly),repeat(saveimages)))
+            n=len(L["dataset"])
+            res = p.starmap(theF,zip(L["dataset"],[dimension]*n,[augonly]*n,[saveimages]*n))
         p.close()
     else:
         res=[]
@@ -510,11 +511,18 @@ def dataset_to_datasetbatches(JF,dimension, parallel):
         j={"dimension":dimension,"dataset":batch}
         new_dataset.append(j)
     return new_dataset        
-def exrtactMyFeaturesToSQLlite(jf,dimension,max_level=3,parallel=True,augonly=False,saveimages=None,db=None,table_name='extraction',extraction_configurations=None):
+import pynico_eros_montin.pynico as pn
+
+def exrtactMyFeaturesToSQLlite(jf,dimension,max_level=3,parallel=True,augonly=False,saveimages=None,db=None,table_name='extraction',extraction_configurations=None,log=None):
     # create a database in memory in case user doesn't pass it as an argument
-    
+    LOG= log is not None
     conn,conf=check_table(db=db, table_name=table_name)
     db=conf['db']
+    if LOG:
+        log.append(f"Extracting features from {jf}\n")
+        log.append(f"DB conf: {conf}\n")
+        log.dump()
+        
     table_name=conf['table_name']
     if saveimages!=None:
         LL=pn.Pathable(saveimages)
@@ -522,18 +530,18 @@ def exrtactMyFeaturesToSQLlite(jf,dimension,max_level=3,parallel=True,augonly=Fa
     #read the json file and extract the features
     JF=pn.Pathable(jf)
     JF=JF.readJson()
-    
-    
-
-
     # get the number of cores available
     B=dataset_to_datasetbatches(JF, dimension,parallel)
     for b in B:
         b=filter_dataset_batches(b,db,table_name)
         rs,inds=exrtactMyFeatures(b,dimension,parallel,augonly=augonly,saveimages=saveimages)
+
         for r,ind in zip(rs,inds):
             #insert into sqlite
             insert_into_table(db=db, table_name=table_name, extraction_id=ind, json_structure=json.dumps(r))
+            if LOG:
+                log.append(f"Extracted {ind} features\n")
+                log.dump()
     print("normalizing")
     return     
 

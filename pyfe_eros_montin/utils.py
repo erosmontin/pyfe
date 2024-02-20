@@ -95,7 +95,7 @@ if __name__=='__main__':
     images=L["images"]
     rois=L["rois"]
     ids=L["ids"]
-    rv=[1,2,3,4,5,6,7]
+    rv=[1]
 
     # create the pyfe object
 
@@ -130,8 +130,10 @@ if __name__=='__main__':
     o.ensureDirectoryExistence()
     o.writeJson({"dimension":DIMENSION,"dataset":D})
     db=f'{RESULTSOUTPUT}/db.sqlite'
-    p=exrtactMyFeaturesToSQLlite(o.getPosition(),DIMENSION,3,parallel=False,augonly=False,saveimages='/g/im/',db=db,table_name='features')
-    
+    l=pn.Log()
+    l.fn='/g/a.log' 
+    p=exrtactMyFeaturesToSQLlite(o.getPosition(),DIMENSION,3,parallel=False,augonly=False,db='/g/sq.sqlite',table_name='features',log=l)
+
     # roilist=[]
     # ids=[]
     # imageslist=[]
