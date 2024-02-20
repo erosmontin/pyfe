@@ -510,17 +510,9 @@ def dataset_to_datasetbatches(JF,dimension, parallel):
         j={"dimension":dimension,"dataset":batch}
         new_dataset.append(j)
     return new_dataset        
-def exrtactMyFeaturesToSQLlite(jf,dimension,max_level=3,parallel=True,augonly=False,saveimages=None,db=None,table_name='extraction',extraction_configurations=None,conf_table='conf'):
+def exrtactMyFeaturesToSQLlite(jf,dimension,max_level=3,parallel=True,augonly=False,saveimages=None,db=None,table_name='extraction',extraction_configurations=None):
     # create a database in memory in case user doesn't pass it as an argument
     
-    conn_conf,conf_conf=check_table(db=db, table_name=conf_table)
-    
-    #search in the configuration if 
-    select_query = f"SELECT * FROM {conf_table}"
-    cursor = conn_conf.cursor()
-    cursor.execute(select_query, (table_name))
-    
-       
     conn,conf=check_table(db=db, table_name=table_name)
     db=conf['db']
     table_name=conf['table_name']
