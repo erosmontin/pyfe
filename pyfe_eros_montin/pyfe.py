@@ -566,6 +566,11 @@ def theF(X,d,augonly=False,saveimages=None):
     G=pn.GarbageCollector()
     resample=[1,1,1]
     resampleflag=False
+    
+    try:
+        aug=X["augment"]
+    except:
+        aug=[]
     if "resample" in aug["options"].keys():
         resampleflag=True
         resample=aug["options"]["resample"]
