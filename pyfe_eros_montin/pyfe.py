@@ -511,18 +511,14 @@ def dataset_to_datasetbatches(JF,dimension, parallel):
         j={"dimension":dimension,"dataset":batch}
         new_dataset.append(j)
     return new_dataset        
-import pynico_eros_montin.pynico as pn
-
 def exrtactMyFeaturesToSQLlite(jf,dimension,max_level=3,parallel=True,augonly=False,saveimages=None,db=None,table_name='extraction',extraction_configurations=None,log=None):
     # create a database in memory in case user doesn't pass it as an argument
     LOG= log is not None
+    pn.Log(
+        
+    )
     conn,conf=check_table(db=db, table_name=table_name)
     db=conf['db']
-    if LOG:
-        log.append(f"Extracting features from {jf}\n")
-        log.append(f"DB conf: {conf}\n")
-        log.dump()
-        
     table_name=conf['table_name']
     if saveimages!=None:
         LL=pn.Pathable(saveimages)
@@ -530,20 +526,24 @@ def exrtactMyFeaturesToSQLlite(jf,dimension,max_level=3,parallel=True,augonly=Fa
     #read the json file and extract the features
     JF=pn.Pathable(jf)
     JF=JF.readJson()
+    
+    
+
+
     # get the number of cores available
     B=dataset_to_datasetbatches(JF, dimension,parallel)
     for b in B:
         b=filter_dataset_batches(b,db,table_name)
         rs,inds=exrtactMyFeatures(b,dimension,parallel,augonly=augonly,saveimages=saveimages)
-
+        if LOG:
+            log.append(f"Extracted {len(inds)} features\n")
+            log.write()
         for r,ind in zip(rs,inds):
             #insert into sqlite
             insert_into_table(db=db, table_name=table_name, extraction_id=ind, json_structure=json.dumps(r))
-            if LOG:
-                log.append(f"Extracted {ind} features\n")
-                log.dump()
     print("normalizing")
-    return     
+    return   conf
+
 
 def pyfejsonFeaturesToPandas(xf,idf,max_level=3):
     P=pn.Pathable(xf)
@@ -554,15 +554,6 @@ def pyfejsonFeaturesToPandas(xf,idf,max_level=3):
     return X
 
 
-# def theF3(X):
-#     return theF(X,3)
-# def theF2(X):
-#     return theF(X,2)
-# def theF3AUG(X):
-#     return theF(X,3,True)
-# def theF2AUG(X):
-#     return theF(X,2,True)
-
 from pyable_eros_montin import imaginable
 import numpy as np
 import SimpleITK as sitk
@@ -571,8 +562,38 @@ def theF(X,d,augonly=False,saveimages=None):
     line=X["data"]
     r=[]
     ids=[]
+
+    G=pn.GarbageCollector()
+    resample=[1,1,1]
+    resampleflag=False
+    if "resample" in aug["options"].keys():
+        resampleflag=True
+        resample=aug["options"]["resample"]
+    line2=deepcopy(line)
     if not augonly:
-        r.append(computeRow(line,d))
+        #extract the features
+        
+        
+        if resampleflag:
+            for i,x in enumerate(line2):
+                im,roi=x["image"],x["labelmap"]
+                IM=imaginable.Imaginable(filename=im)
+                ROI=imaginable.Imaginable(filename=roi)
+                ROI.dfltInterpolator=sitk.sitkNearestNeighbor
+                ROI.dfltuseNearestNeighborExtrapolator=True
+                IM.changeImageSpacing(resample)
+                ROI.changeImageSpacing(resample)
+                imn=pn.Pathable(im)
+                roin=pn.Pathable(roi)
+                imn.changePathToOSTemporary().changeFileNameRandom()
+                roin.changePathToOSTemporary().changeFileNameRandom()
+                G.throw(imn.getPosition())
+                G.throw(roin.getPosition())
+                line2[i]["image"]=imn.getPosition()
+                line2[i]["labelmap"]=roin.getPosition()
+        
+        
+        r.append(computeRow(line2,d))
         ids.append(X["id"])
 
     if "augment" in X.keys():
@@ -593,11 +614,7 @@ def theF(X,d,augonly=False,saveimages=None):
             Sv=aug["options"]["s"]
             scale =True
         
-        resample=[1,1,1]
-        resampleflag=False
-        if "resample" in aug["options"].keys():
-            resampleflag=True
-            resample=aug["options"]["resample"]
+
             
             
         for n in range(aug["n"]):    
@@ -607,15 +624,15 @@ def theF(X,d,augonly=False,saveimages=None):
             if scale:
                 S=[ np.random.uniform(low=l, high=h, size=1)[0] for l,h in Sv]
             line2 =deepcopy(line)
-            G=pn.GarbageCollector()
             for i,x in enumerate(line2):
                 im,roi=x["image"],x["labelmap"]
                 IM=imaginable.Imaginable(filename=im)
-                ROI=imaginable.LabelMapable(filename=roi)
-
+                ROI=imaginable.Imaginable(filename=roi)
+                ROI.dfltInterpolator=sitk.sitkNearestNeighbor
+                ROI.dfltuseNearestNeighborExtrapolator=True
                 AFF=ima.create_affine_matrix(rotation=R,scaling=S)
                 
-                IM.transformImageAffine(AFF.flatten().tolist(),translation=T,interpolator=sitk.sitkBSpline)
+                IM.transformImageAffine(AFF.flatten().tolist(),translation=T)
                 ROI.transformImageAffine(AFF.flatten().tolist(),translation=T)
                 if resampleflag:
                     IM.changeImageSpacing(resample)
@@ -658,7 +675,7 @@ def theF(X,d,augonly=False,saveimages=None):
     #     #print the image name
     #     print(X["id"])
     #     return r,ids
-        
+    G.trash()
     return r,ids
 
     
@@ -703,8 +720,8 @@ def computeRow(line,d):
                 with open(f,'a') as fi:
                     fi.write(f'{x["image"]},{x["labelmap"]},{x["labelmapvalue"]}\n')
                 fi.close()
-                break
-        
+                continue
+
 
     return out
 
