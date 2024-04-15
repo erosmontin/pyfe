@@ -11,7 +11,9 @@ from pydaug_eros_montin import pydaug as pda
 import pyable_eros_montin.dev as dev
 import toml
 
+import uuid
 
+TIME = str(uuid.uuid1)
 # print(__file__)
 # with open(f'{pn.Pathable(__file__).getPath()}/../pyproject.toml', 'r') as f:
 # #     config = toml.load(f)
@@ -721,7 +723,7 @@ def computeRow(line,d):
                     out[prefixname][ft]={}
                 out[prefixname][ft]= f[ft]
             except:
-                f=pn.createTemporaryPathableFromFileName('a.txt')
+                f=f'errors_extractionproblems{TIME}.txt'
                 with open(f,'a') as fi:
                     fi.write(f'{x["image"]},{x["labelmap"]},{x["labelmapvalue"]}\n')
                 fi.close()
