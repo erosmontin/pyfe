@@ -516,9 +516,13 @@ def dataset_to_datasetbatches(JF,dimension, parallel):
 def exrtactMyFeaturesToSQLlite(jf,dimension,max_level=3,parallel=True,augonly=False,saveimages=None,db=None,table_name='extraction',extraction_configurations=None,log=None):
     # create a database in memory in case user doesn't pass it as an argument
     LOG= log is not None
-    pn.Log(
-        
-    )
+    if LOG:
+        if isinstance(log,str):
+            f=log
+            log=pn.Log()
+            log.fn=f
+            
+            
     conn,conf=check_table(db=db, table_name=table_name)
     db=conf['db']
     table_name=conf['table_name']
@@ -539,7 +543,7 @@ def exrtactMyFeaturesToSQLlite(jf,dimension,max_level=3,parallel=True,augonly=Fa
         rs,inds=exrtactMyFeatures(b,dimension,parallel,augonly=augonly,saveimages=saveimages)
         if LOG:
             log.append(f"Extracted {len(inds)} features\n")
-            log.write()
+            log.dump()
         for r,ind in zip(rs,inds):
             #insert into sqlite
             insert_into_table(db=db, table_name=table_name, extraction_id=ind, json_structure=json.dumps(r))
