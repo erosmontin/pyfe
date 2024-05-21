@@ -492,7 +492,7 @@ def filter_dataset_batches(jf,db,table_name):
     cursor = conn.cursor()
     ids = []
     for _id in get_all_ids_in_task(jf):
-        cursor.execute(f"SELECT extraction_id FROM {table_name} where extraction_id like ?",(_id,))
+        cursor.execute(f"SELECT extraction_id FROM {table_name} where extraction_id == ?",(_id,))
         for r in cursor.fetchall():
             ids.append(_id)
     conn.close()
@@ -540,14 +540,17 @@ def exrtactMyFeaturesToSQLlite(jf,dimension,max_level=3,parallel=True,augonly=Fa
     B=dataset_to_datasetbatches(JF, dimension,parallel)
     for b in B:
         b=filter_dataset_batches(b,db,table_name)
-        rs,inds=exrtactMyFeatures(b,dimension,parallel,augonly=augonly,saveimages=saveimages)
-        if LOG:
-            log.append(f"Extracted {len(inds)} features\n")
-            log.dump()
-        for r,ind in zip(rs,inds):
-            #insert into sqlite
-            insert_into_table(db=db, table_name=table_name, extraction_id=ind, json_structure=json.dumps(r))
-    print("normalizing")
+        if b["dataset"]==[]:
+            print("continue")
+            continue
+        else:
+            rs,inds=exrtactMyFeatures(b,dimension,parallel,augonly=augonly,saveimages=saveimages)
+            if LOG:
+                log.append(f"Extracted {len(inds)} features\n")
+                log.dump()
+            for r,ind in zip(rs,inds):
+                #insert into sqlite
+                insert_into_table(db=db, table_name=table_name, extraction_id=ind, json_structure=json.dumps(r))
     return   conf
 
 
@@ -738,7 +741,8 @@ def computeRow(line,d):
 
 
 if __name__=="__main__":
-    pass
-
+    J='/g/feconf_000.json'
+    l=pn.Log()
+    exrtactMyFeaturesToSQLlite(J,3,3,parallel=False,augonly=False,saveimages=None,db='/g/db.sqlite',table_name='features',log=l)
 
 
