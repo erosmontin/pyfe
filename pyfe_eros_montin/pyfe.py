@@ -13,7 +13,9 @@ import toml
 
 import uuid
 
-TIME = str(uuid.uuid1)
+
+def getTIME():
+    return uuid.uuid4().hex
 # print(__file__)
 # with open(f'{pn.Pathable(__file__).getPath()}/../pyproject.toml', 'r') as f:
 # #     config = toml.load(f)
@@ -29,6 +31,7 @@ class FE():
             "git":"",
         }
 
+  
   
         self.PT=PT        
         self.Options={}
@@ -281,11 +284,11 @@ class PYRAD(TEXTURES):
             else:
                 p=roi.getImageAsNumpy()
                 if roi.getImageDimension()==3:
-                    p[1:10,1:10,1:10]=1
+                    p[1:5,1:5,1:5]=1
                 elif roi.getImageDimension()==2:
-                    p[1:10,1:10]=1
+                    p[1:5,1:5]=1
                 else:
-                    p[1:10]=1
+                    p[1:5]=1
                 roi.setImageFromNumpy(p)
                 P = extractor.execute(im.getImage(), roi.getImage())
                 O={}
@@ -295,11 +298,11 @@ class PYRAD(TEXTURES):
         except:
             p=roi.getImageAsNumpy()
             if roi.getImageDimension()==3:
-                p[1:10,1:10,1:10]=1
+                p[1:5,1:5,1:5]=1
             elif roi.getImageDimension()==2:
-                p[1:10,1:10]=1
+                p[1:5,1:5]=1
             else:
-                p[1:10]=1
+                p[1:5]=1
             roi.setImageFromNumpy(p)
             P = extractor.execute(im.getImage(), roi.getImage())
             O={}
@@ -603,6 +606,8 @@ def theF(X,d,augonly=False,saveimages=None):
                 roin.changePathToOSTemporary().changeFileNameRandom()
                 G.throw(imn.getPosition())
                 G.throw(roin.getPosition())
+                IM.writeImageAs(imn.getPosition())
+                ROI.writeImageAs(roin.getPosition())
                 line2[i]["image"]=imn.getPosition()
                 line2[i]["labelmap"]=roin.getPosition()
         
@@ -730,7 +735,7 @@ def computeRow(line,d):
                     out[prefixname][ft]={}
                 out[prefixname][ft]= f[ft]
             except:
-                f=f'errors_extractionproblems{TIME}.txt'
+                f=f'errors_extractionproblems{getTIME()}.txt'
                 with open(f,'a') as fi:
                     fi.write(f'{x["image"]},{x["labelmap"]},{x["labelmapvalue"]}\n')
                 fi.close()
@@ -741,7 +746,7 @@ def computeRow(line,d):
 
 
 if __name__=="__main__":
-    J='/g/feconf_000.json'
+    J='/data/PROJECTS/oai_research/hpc/feconf_000.json'
     l=pn.Log()
     exrtactMyFeaturesToSQLlite(J,3,3,parallel=False,augonly=False,saveimages=None,db='/g/db.sqlite',table_name='features',log=l)
 
