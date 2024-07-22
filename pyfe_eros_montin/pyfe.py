@@ -248,21 +248,23 @@ class PYRAD(TEXTURES):
 #     - 'no_weighting': GLCMs are weighted by factor 1 and summed
 #     - None: Applies no weighting, mean of values calculated on separate matrices is returned.
 
-        if self.Options["min"]=='N':
-            self.Options["min"]=im.getMinimumValue()
-        if self.Options["max"]=='N':
-            self.Options["max"]=im.getMaximumValue()
+        
+            
+        
+        
         settings = {
                     'nbins': self.Options["bin"],
                     'kernelRadius': self.Options["radius"],
                     'distances': [self.Options["radius"]],
-                    'min': self.Options["min"],
+                    # 'min': self.Options["min"],
                     'minimum': self.Options["min"],
-                    'max': self.Options["max"],
+                    # 'max': self.Options["max"],
                     'maximum': self.Options["max"]
                 }
         #set min and max pyradiomics
-
+        if self.Options["min"]=='N' and self.Options["max"]=='N':
+            settings["normalize"]=True
+        settings["interpolator"]=sitk.sitkNearestNeighbor
 
         extractor = prsfe.RadiomicsFeatureExtractor(**settings)
         extractor.enableAllFeatures()
@@ -746,7 +748,8 @@ def computeRow(line,d):
 
 
 if __name__=="__main__":
-    J='/data/PROJECTS/oai_research/hpc/feconf_000.json'
+    # J='/data/PROJECTS/oai_research/hpc/feconf_000.json'
+    J='/g/feconf.json'
     l=pn.Log()
     exrtactMyFeaturesToSQLlite(J,3,3,parallel=False,augonly=False,saveimages=None,db='/g/db.sqlite',table_name='features',log=l)
 
