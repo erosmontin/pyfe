@@ -12,6 +12,8 @@ pip install git+https://www.github.com/erosmontin/pyfe
 
 
 ## Changhelog:
+1. version 0.1.16 **2024-07-23**
+    - normalize options for pyrad and correct binning
 1. version 0.1.3 **2023-10-13**
     - pyradiomic PYRAD
 1. version 0.1.2 **2023-10-13**
