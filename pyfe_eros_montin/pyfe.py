@@ -260,17 +260,12 @@ class PYRAD(TEXTURES):
             
         settings = {
                     'nbins': self.Options["bin"],
+                    'binCount': self.Options["bin"],
                     'kernelRadius': self.Options["radius"],
                     'distances': [self.Options["radius"]],
+                    'normalize': self.Options["normalize"]
                         }
-        #set min and max pyradiomics
-        if self.Options["min"]=='N' and self.Options["max"]=='N':
-            if not settings["normalize"]:            
-                min=im.getMinimumValue()
-                max=im.getMaximumValue()
-                settings["binWidth"]=float((max-min)/settings["nbins"])
-            else:
-                settings["binWidth"]=1/settings["nbins"]
+
 
             
             
