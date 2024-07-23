@@ -220,13 +220,13 @@ class PYRAD(TEXTURES):
     def __init__(self, image=None, roi=None, roiv=None, PT=None, options=None) -> None:
         super().__init__(image, roi, roiv, PT, options)
         self.featurestype=['firstorder','shape','glcm','glrlm','glszm','gldm','ngtdm']
-    
+        self.Options["normalize"]=False
+
     def getPYRAD(self):
         
         v=self.getROIvalue()
         im=ima.Imaginable(self.getImage())
         roi=ima.Roiable(self.getROI(),roivalue=v)
-        print(self.getImage())
         
         warnings.simplefilter('ignore', DeprecationWarning)
         # logger = radiomics.logging.getLogger("radiomics")
@@ -251,21 +251,33 @@ class PYRAD(TEXTURES):
         
             
         
-        
+        if "normalize" in self.Options.keys():
+            pass
+        else:
+            self.Options["normalize"]=False
+            
+            
+            
         settings = {
                     'nbins': self.Options["bin"],
                     'kernelRadius': self.Options["radius"],
                     'distances': [self.Options["radius"]],
-                    # 'min': self.Options["min"],
-                    'minimum': self.Options["min"],
-                    # 'max': self.Options["max"],
-                    'maximum': self.Options["max"]
-                }
+                        }
         #set min and max pyradiomics
         if self.Options["min"]=='N' and self.Options["max"]=='N':
-            settings["normalize"]=True
-        settings["interpolator"]=sitk.sitkNearestNeighbor
+            if not settings["normalize"]:            
+                min=im.getMinimumValue()
+                max=im.getMaximumValue()
+                settings["binWidth"]=float((max-min)/settings["nbins"])
+            else:
+                settings["binWidth"]=1/settings["nbins"]
 
+            
+            
+        
+        settings["interpolator"]=sitk.sitkNearestNeighbor
+        
+        
         extractor = prsfe.RadiomicsFeatureExtractor(**settings)
         extractor.enableAllFeatures()
         extractor.enableAllImageTypes()
