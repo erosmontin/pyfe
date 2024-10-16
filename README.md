@@ -1,17 +1,33 @@
-# pyFe
-Features extraction and machine learning 
+# pyFE
+Features Extraction and machine learning for Radiomics Analysis of 2D/3D biomedical images
 
-## installation
-1. install this package
-1. compile [Features Extractor](https://github.com/erosmontin/FeaturesExtractor)
-1. copy bld directory in the library path
-1. install [pyfe](https://www.githu.com/erosmontin/pyfe) or ask [Eros](eros.montin@gmail.com)
+## Installation
+if you only want to use only PYRAD
+
 ```
 pip install git+https://www.github.com/erosmontin/pyfe
 ```
 
+if you want to use also all the others classes, continue the installation by
 
-## Changhelog:
+1. compile our [Features Extractor](https://github.com/erosmontin/FeaturesExtractor)
+1. copy bld directory in the library path
+
+
+
+## Cite Us
+1. Montin, E., Kijowski, R., Youm, T., & Lattanzi, R. (2024). Radiomics features outperform standard radiological measurements in detecting femoroacetabular impingement on three‐dimensional magnetic resonance imaging. In Journal of Orthopaedic Research. Wiley. https://doi.org/10.1002/jor.25952
+
+1. Montin, E., Kijowski, R., Youm, T., & Lattanzi, R. (2023). A radiomics approach to the diagnosis of femoroacetabular impingement. In Frontiers in Radiology (Vol. 3). Frontiers Media SA. https://doi.org/10.3389/fradi.2023.1151258
+
+1. Cavatorta, C., Meroni, S., Montin, E., Oprandi, M. C., Pecori, E., Lecchi, M., Diletto, B., Alessandro, O., Peruzzo, D., Biassoni, V., Schiavello, E., Bologna, M., Massimino, M., Poggi, G., Mainardi, L., Arrigoni, F., Spreafico, F., Verderio, P., Pignoli, E., & Gandola, L. (2021). Retrospective study of late radiation-induced damages after focal radiotherapy for childhood brain tumors. In S. D. Ginsberg (Ed.), PLOS ONE (Vol. 16, Issue 2, p. e0247748). Public Library of Science (PLoS). https://doi.org/10.1371/journal.pone.0247748
+
+1. Montin, E., Belfatto, A., Bologna, M., Meroni, S., Cavatorta, C., Pecori, E., Diletto, B., Massimino, M., Oprandi, M. C., Poggi, G., Arrigoni, F., Peruzzo, D., Pignoli, E., Gandola, L., Cerveri, P., & Mainardi, L. (2020). A multi-metric registration strategy for the alignment of longitudinal brain images in pediatric oncology. In Medical &amp; Biological Engineering &amp; Computing (Vol. 58, Issue 4, pp. 843–855). Springer Science and Business Media LLC. https://doi.org/10.1007/s11517-019-02109-4
+
+
+## Change log:
+1. version 1.0.0 ***2024-10-15**
+    - compatibility with pyable v2
 1. version 0.1.17 **2024-07-23**
     - normalize options for pyrad and correct binning
 1. version 0.1.03 **2023-10-13**
