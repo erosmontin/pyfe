@@ -8,7 +8,7 @@ if you only want to use only PYRAD
 pip install git+https://www.github.com/erosmontin/pyfe
 ```
 
-if you want to use also all the others classes, continue the installation byL
+if you want to use also all the others classes, continue the installation by
 
 1. compile our [Features Extractor](https://github.com/erosmontin/FeaturesExtractor)
 1. copy bld directory in the library path
