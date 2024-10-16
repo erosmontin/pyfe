@@ -280,7 +280,7 @@ class PYRAD(TEXTURES):
         #get extractor imagestypes
         
         try:
-            if im.isImaginableInTheSameSpace(roi):
+            if not im.isImaginableInTheSameSpace(roi):
                 roi.resampleOnTargetImage(im)
 
             if roi.getNumberOfNonZeroVoxels()>20:
