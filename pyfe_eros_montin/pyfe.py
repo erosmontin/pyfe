@@ -260,10 +260,11 @@ class PYRAD(TEXTURES):
             
         settings = {
                     'nbins': self.Options["bin"],
-                    'binCount': self.Options["bin"],
-                    'kernelRadius': self.Options["radius"],
+                    # 'binCount': self.Options["bin"],
+                    # 'kernelRadius': self.Options["radius"],
                     'distances': [self.Options["radius"]],
-                    'normalize': self.Options["normalize"]
+                    'normalize': self.Options["normalize"],
+                    'minimumROISize': 8,
                         }
 
 
@@ -276,50 +277,34 @@ class PYRAD(TEXTURES):
         extractor = prsfe.RadiomicsFeatureExtractor(**settings)
         extractor.enableAllFeatures()
         extractor.enableAllImageTypes()
+        
         # extractor.enableFeatureClassByName(self.featurestype)
         #get extractor imagestypes
         
+        
+        if not im.isImaginableInTheSameSpace(roi):
+            roi.resampleOnTargetImage(im)
+        WORKED=True
         try:
-            if not im.isImaginableInTheSameSpace(roi):
-                roi.resampleOnTargetImage(im)
-
-            if roi.getNumberOfNonZeroVoxels()>20:
-                # roi.resampleOnTargetImage(im)
-                P = extractor.execute(im.getImage(), roi.getImage())
-                O={}
-                for k,v in P.items():
-                    if not('diagnostic' in k):
-                        O[k]=float(v)
-            else:
-                p=roi.getImageAsNumpy()
-                if roi.getImageDimension()==3:
-                    p[1:5,1:5,1:5]=1
-                elif roi.getImageDimension()==2:
-                    p[1:5,1:5]=1
-                else:
-                    p[1:5]=1
-                roi.setImageFromNumpy(p)
-                P = extractor.execute(im.getImage(), roi.getImage())
-                O={}
-                for k,v in P.items():
-                    if not('diagnostic' in k):
-                        O[k]=np.nan
-        except:
-            p=roi.getImageAsNumpy()
-            if roi.getImageDimension()==3:
-                p[1:5,1:5,1:5]=1
-            elif roi.getImageDimension()==2:
-                p[1:5,1:5]=1
-            else:
-                p[1:5]=1
-            roi.setImageFromNumpy(p)
             P = extractor.execute(im.getImage(), roi.getImage())
-            O={}
-            for k,v in P.items():
-                if not('diagnostic' in k):
-                    O[k]=np.nan
-        return O
-                
+        except:
+            WORKED=False
+            fakeroi=roi.getImage()
+            fakeroi*=0
+            #random assign 9 value to the roi = 1
+            for i in range(3):
+                for j in range(3):
+                    fakeroi[i,j,0]=1
+            P = extractor.execute(im.getImage(), fakeroi)
+        
+        O={}
+        for k,v in P.items():
+            if not('diagnostic' in k):
+                if WORKED:
+                    O[k]=float(v)
+                else:
+                    O[k]=float(numpy.nan)
+        return O                
 
     def getFeatures(self,moredomain=None):
         MASK=''
