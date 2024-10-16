@@ -2,16 +2,19 @@
 Features extraction and machine learning 
 
 ## Installation
-1. install this package
-1. compile [Features Extractor](https://github.com/erosmontin/FeaturesExtractor)
-1. copy bld directory in the library path
-1. install [pyfe](https://www.githu.com/erosmontin/pyfe) or ask [Eros](eros.montin@gmail.com)
-
-if you only wan tto use PYRAD
+if you only want to use only PYRAD
 
 ```
 pip install git+https://www.github.com/erosmontin/pyfe
 ```
+
+if you want to use also all the others classes, continue the installation byL
+
+1. compile our [Features Extractor](https://github.com/erosmontin/FeaturesExtractor)
+1. copy bld directory in the library path
+
+
+
 ## Cite Us
 1. Montin, E., Kijowski, R., Youm, T., & Lattanzi, R. (2024). Radiomics features outperform standard radiological measurements in detecting femoroacetabular impingement on three‐dimensional magnetic resonance imaging. In Journal of Orthopaedic Research. Wiley. https://doi.org/10.1002/jor.25952
 
