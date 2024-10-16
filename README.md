@@ -1,5 +1,5 @@
-# pyFe
-Features extraction and machine learning 
+# pyFE
+Features Extraction and machine learning for Radiomics Analysis of 2D/3D biomedical images
 
 ## Installation
 if you only want to use only PYRAD
@@ -26,6 +26,8 @@ if you want to use also all the others classes, continue the installation by
 
 
 ## Change log:
+1. version 1.0.0 ***2024-10-15**
+    - compatibility with pyable v2
 1. version 0.1.17 **2024-07-23**
     - normalize options for pyrad and correct binning
 1. version 0.1.03 **2023-10-13**
