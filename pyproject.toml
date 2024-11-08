@@ -13,13 +13,13 @@ authors = [
 ]
 description = "pyfe"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = "<=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dependencies = ["scikit-learn","pandas","numpy", "pynico_eros_montin @ git+https://github.com/erosmontin/pynico.git","scipy","toml","benford_py","trimesh","pyable_eros_montin @ git+https://github.com/erosmontin/pyable.git","pydaug_eros_montin @ git+https://github.com/erosmontin/pydaug.git","pyradiomics"]
+dependencies = ["scikit-learn","pandas","numpy<2.0", "pynico_eros_montin @ git+https://github.com/erosmontin/pynico.git","scipy","toml","benford_py","trimesh","pyable_eros_montin @ git+https://github.com/erosmontin/pyable.git","pydaug_eros_montin @ git+https://github.com/erosmontin/pydaug.git","pyradiomics"]
 
 [project.urls]
 "Homepage" = "https://github.com/erosmontin/pyfe"
