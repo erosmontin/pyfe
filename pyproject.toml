@@ -7,13 +7,13 @@ allow-direct-references = true
 
 [project]
 name = "pyfe_eros_montin"
-version = "1.0.0"
+version = "1.0.1"
 authors = [
   { name="Dr. Eros Montin, PhD", email="eros.montin@gmail.com" },
 ]
 description = "pyfe"
 readme = "README.md"
-requires-python = "<=3.9"
+requires-python = "<3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
