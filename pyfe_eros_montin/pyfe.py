@@ -260,16 +260,13 @@ class PYRAD(TEXTURES):
             
         settings = {
                     'nbins': self.Options["bin"],
-                    # 'binCount': self.Options["bin"],
-                    # 'kernelRadius': self.Options["radius"],
+                    'binCount': self.Options["bin"],
+                    'kernelRadius': self.Options["radius"],
                     'distances': [self.Options["radius"]],
                     'normalize': self.Options["normalize"],
                     'minimumROISize': 8,
                         }
 
-
-            
-            
         
         settings["interpolator"]=sitk.sitkNearestNeighbor
         
