@@ -261,7 +261,7 @@ class PYRAD(TEXTURES):
         settings = {
                     'nbins': self.Options["bin"],
                     'binCount': self.Options["bin"],
-                    'kernelRadius': self.Options["radius"],
+                    'kernelRadius': [self.Options["radius"]],
                     'distances': [self.Options["radius"]],
                     'normalize': self.Options["normalize"],
                     'minimumROISize': 8,
