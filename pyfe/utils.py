@@ -77,15 +77,15 @@ class MakeJsonFe():
         return OUT
     def makeAUG(self,n,r,t,s):
         self.AUG={"n":n,"r":r,"t":t,"s":s}
-import pynico_eros_montin.pynico as pn
+import pynico.pynico as pn
 try:
      #debug
      from pyfe import *
      from pyml import *
 except:
      #prod
-     from pyfe_eros_montin.pyfe import *
-     from pyfe_eros_montin.pyml import *
+     from pyfe.pyfe import *
+     from pyfe.pyml import *
 
 
 if __name__=='__main__':

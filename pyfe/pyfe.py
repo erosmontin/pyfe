@@ -4,11 +4,9 @@ import json
 
 import os
 import numpy
-from pynico_eros_montin import pynico as pn
+from pynico import pynico as pn
 
-from pydaug_eros_montin import pydaug as pda
-
-import pyable_eros_montin.dev as dev
+import pyable.dev as dev
 import toml
 
 import uuid
@@ -213,7 +211,7 @@ class GLRLM(TEXTURES):
 
         return out
 import radiomics.featureextractor as prsfe
-import pyable_eros_montin.imaginable as ima
+import pyable.imaginable as ima
 import warnings
 import radiomics
 class PYRAD(TEXTURES):
@@ -557,7 +555,7 @@ def pyfejsonFeaturesToPandas(xf,idf,max_level=3):
     return X
 
 
-from pyable_eros_montin import imaginable
+from pyable import imaginable
 import numpy as np
 import SimpleITK as sitk
 def theF(X,d,augonly=False,saveimages=None):

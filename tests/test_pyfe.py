@@ -1,6 +1,6 @@
 
-from pyfe_eros_montin import pyfe as pf
-from pynico_eros_montin import pynico as pn
+from pyfe import pyfe as pf
+from pynico import pynico as pn
 
 
  

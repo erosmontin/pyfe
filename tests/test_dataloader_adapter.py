@@ -7,8 +7,8 @@ import importlib.util
 from pathlib import Path
 
 spec = importlib.util.spec_from_file_location(
-    "pyfe_eros_montin.dataloader",
-    Path(__file__).resolve().parents[1] / 'pyfe_eros_montin' / 'dataloader.py'
+    "pyfe.dataloader",
+    Path(__file__).resolve().parents[1] / 'pyfe' / 'dataloader.py'
 )
 pyfe_dataloader = importlib.util.module_from_spec(spec)
 

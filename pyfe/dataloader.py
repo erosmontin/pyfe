@@ -4,7 +4,7 @@ Re-export pyable_dataloader Dataset and transforms for pyfe
 This file allows pyfe to import the dataloader and transforms in a
 backwards-compatible way, e.g.:
 
-from pyfe_eros_montin.dataloader import PyableDataset, Compose, RandomTranslation
+from pyfe.dataloader import PyableDataset, Compose, RandomTranslation
 
 """
 from pyable_dataloader import (
