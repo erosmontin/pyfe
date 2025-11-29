@@ -36,7 +36,7 @@ dependencies = [
     "pyable",
     "pydaug @ git+https://github.com/erosmontin/pydaug.git",
     "pyradiomics>=3.0.0",
-    "optuna>=3.0.0",
+    "pyable-ml[optuna,plotting]",
     "tqdm>=4.60.0",
     "imbalanced-learn>=0.9.0",
 ]

@@ -24,25 +24,40 @@ from .selectors import (
     SELECTOR_REGISTRY
 )
 
-from .optimizer import (
+# Import from pyable-ml (shared utilities)
+from pyable_ml.tuning import (
     OptunaOptimizer,
     suggest_params
 )
 
-from .evaluator import (
+from pyable_ml.evaluation import (
     ModelEvaluator,
-    evaluate_pipeline
 )
 
+from pyable_ml.training import (
+    ExperimentTracker,
+)
+
+# Local imports
 from .grid_search import (
     GridSearchEngine,
     run_full_grid_search
 )
 
-from .tracker import (
-    ExperimentTracker,
-    init_experiment_db
-)
+# Compatibility wrapper for evaluate_pipeline (if it was used)
+def evaluate_pipeline(*args, **kwargs):
+    """Compatibility wrapper. Use ModelEvaluator.evaluate() instead."""
+    raise NotImplementedError(
+        "evaluate_pipeline has been removed. "
+        "Use ModelEvaluator from pyable_ml.evaluation instead."
+    )
+
+def init_experiment_db(*args, **kwargs):
+    """Compatibility wrapper. Use ExperimentTracker() instead."""
+    raise NotImplementedError(
+        "init_experiment_db has been removed. "
+        "Use ExperimentTracker from pyable_ml.training instead."
+    )
 
 __all__ = [
     # Estimators
