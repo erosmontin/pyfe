@@ -28,13 +28,13 @@ dependencies = [
     "scikit-learn>=1.0.0",
     "pandas>=1.3.0",
     "numpy>=1.21.0,<2.0",
-    "pynico",
+    "pynico @ git+https://github.com/erosmontin/pynico.git",
     "scipy>=1.7.0",
     "toml",
     "benford_py",
     "trimesh",
     "pyable",
-    "pydaug @ git+https://github.com/erosmontin/pydaug.git",
+    "pyable-dataloader",
     "pyradiomics>=3.0.0",
     "pyable-ml[optuna,plotting]",
     "tqdm>=4.60.0",
@@ -48,13 +48,13 @@ advanced = [
     "catboost>=1.0.0",
 ]
 qubo = [
-    "qubo-selector>=0.1.0",
+    "qubo-feature-selector @ git+https://github.com/erosmontin/fsqu.git#subdirectory=qubo-feature-selector",
 ]
 all = [
     "lightgbm>=3.3.0",
     "xgboost>=1.6.0",
     "catboost>=1.0.0",
-    "qubo-selector>=0.1.0",
+    "qubo-feature-selector @ git+https://github.com/erosmontin/fsqu.git#subdirectory=qubo-feature-selector",
 ]
 
 [project.urls]
