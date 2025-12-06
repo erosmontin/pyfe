@@ -210,10 +210,17 @@ class GLRLM(TEXTURES):
             out =self.__execute__(os.path.join(basepath,"bld/libfe2dglrlm.so"),args,moredomain + "GLRLM_" + str(self.Options["radius"]))
 
         return out
-import radiomics.featureextractor as prsfe
+try:
+    import radiomics.featureextractor as prsfe
+    import radiomics
+    PYRAD_AVAILABLE = True
+except ImportError:
+    prsfe = None
+    radiomics = None
+    PYRAD_AVAILABLE = False
+
 import pyable.imaginable as ima
 import warnings
-import radiomics
 class PYRAD(TEXTURES):
     def __init__(self, image=None, roi=None, roiv=None, PT=None, options=None) -> None:
         super().__init__(image, roi, roiv, PT, options)
@@ -221,6 +228,8 @@ class PYRAD(TEXTURES):
         self.Options["normalize"]=False
 
     def getPYRAD(self):
+        if not PYRAD_AVAILABLE:
+            raise ImportError("PyRadiomics is not installed. Install with: pip install 'pyfe[radiomics]'")
         
         v=self.getROIvalue()
         im=ima.Imaginable(self.getImage())

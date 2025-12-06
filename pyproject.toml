@@ -42,6 +42,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+radiomics = [
+    "pyradiomics>=3.0.0",
+]
 advanced = [
     "lightgbm>=3.3.0",
     "xgboost>=1.6.0",

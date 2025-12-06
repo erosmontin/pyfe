@@ -9,9 +9,17 @@ __version__ = "3.0.0"
 
 # Core feature extraction (existing functionality)
 from .pyfe import (
-    FE, BD2DecideFE, SS, FOS, TEXTURES, GLCM, GLRLM, PYRAD, BenfordFE,
+    FE, BD2DecideFE, SS, FOS, TEXTURES, GLCM, GLRLM, BenfordFE,
     exrtactMyFeatures, exrtactMyFeaturesToPandas, exrtactMyFeaturesToSQLlite
 )
+
+# Import PYRAD if available
+try:
+    from .pyfe import PYRAD
+    PYRAD_AVAILABLE = True
+except ImportError:
+    PYRAD = None
+    PYRAD_AVAILABLE = False
 
 # Adapter utilities
 try:
@@ -32,16 +40,18 @@ except ImportError:
 __all__ = [
     # Feature Extraction
     'FE', 'BD2DecideFE', 'SS', 'FOS', 'TEXTURES', 'GLCM', 'GLRLM', 
-    'PYRAD', 'BenfordFE',
+    'BenfordFE',
     'exrtactMyFeatures', 'exrtactMyFeaturesToPandas', 'exrtactMyFeaturesToSQLlite',
-    
+]
+
+# Add PYRAD if available
+if PYRAD_AVAILABLE:
+    __all__.append('PYRAD')
+
+__all__.extend([
     # Adapter utilities
     'convert_manifest_to_pyfe',
     
     # ML module
     'learn',
-]
-
-# Package metadata
-__author__ = "Dr. Eros Montin, PhD"
-__email__ = "eros.montin@gmail.com"
+])
