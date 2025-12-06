@@ -5,7 +5,7 @@ Feature extraction for radiomics and comprehensive ML pipeline.
 """
 
 # Version
-__version__ = "3.0.0"
+__version__ = "3"
 
 # Core feature extraction (existing functionality)
 from .pyfe import (
