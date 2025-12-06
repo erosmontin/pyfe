@@ -24,19 +24,26 @@ from .selectors import (
     SELECTOR_REGISTRY
 )
 
-# Import from pyml (shared utilities)
-from pyml.tuning import (
-    OptunaOptimizer,
-    suggest_params
-)
-
-from pyml.evaluation import (
-    ModelEvaluator,
-)
-
-from pyml.training import (
-    ExperimentTracker,
-)
+# Import from pyml (shared utilities) - optional dependency
+try:
+    from pyml.tuning import (
+        OptunaOptimizer,
+        suggest_params
+    )
+    from pyml.evaluation import (
+        ModelEvaluator,
+    )
+    from pyml.training import (
+        ExperimentTracker,
+    )
+    PYML_AVAILABLE = True
+except ImportError:
+    # pyml not available - provide dummy classes
+    OptunaOptimizer = None
+    suggest_params = None
+    ModelEvaluator = None
+    ExperimentTracker = None
+    PYML_AVAILABLE = False
 
 # Local imports
 from .grid_search import (
@@ -47,16 +54,20 @@ from .grid_search import (
 # Compatibility wrapper for evaluate_pipeline (if it was used)
 def evaluate_pipeline(*args, **kwargs):
     """Compatibility wrapper. Use ModelEvaluator.evaluate() instead."""
+    if not PYML_AVAILABLE:
+        raise ImportError("pyml package is required for ModelEvaluator. Install with: pip install pyfe[ml]")
     raise NotImplementedError(
         "evaluate_pipeline has been removed. "
-        "Use ModelEvaluator from pyable_ml.evaluation instead."
+        "Use ModelEvaluator from pyml.evaluation instead."
     )
 
 def init_experiment_db(*args, **kwargs):
     """Compatibility wrapper. Use ExperimentTracker() instead."""
+    if not PYML_AVAILABLE:
+        raise ImportError("pyml package is required for ExperimentTracker. Install with: pip install pyfe[ml]")
     raise NotImplementedError(
         "init_experiment_db has been removed. "
-        "Use ExperimentTracker from pyable_ml.training instead."
+        "Use ExperimentTracker from pyml.training instead."
     )
 
 __all__ = [
@@ -73,21 +84,22 @@ __all__ = [
     'get_selector_by_name',
     'SELECTOR_REGISTRY',
     
-    # Optimizer
-    'OptunaOptimizer',
-    'suggest_params',
-    
-    # Evaluator
-    'ModelEvaluator',
-    'evaluate_pipeline',
-    
     # Grid Search
     'GridSearchEngine',
     'run_full_grid_search',
     
-    # Tracker
-    'ExperimentTracker',
+    # Compatibility
+    'evaluate_pipeline',
     'init_experiment_db',
 ]
+
+# Add pyml items if available
+if PYML_AVAILABLE:
+    __all__.extend([
+        'OptunaOptimizer',
+        'suggest_params',
+        'ModelEvaluator',
+        'ExperimentTracker',
+    ])
 
 __version__ = "2.0.0"
