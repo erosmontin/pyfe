@@ -35,7 +35,7 @@ dependencies = [
     "trimesh",
     "pyable @ git+https://github.com/erosmontin/pyable.git@v3",
     "pyable-dataloader @ git+https://github.com/erosmontin/pyable-dataloader.git@v3",
-    "pyml[optuna,plotting] @ git+https://github.com/erosmontin/pyml.git@v3",
+    "pyml[optuna,plotting] @ git+https://github.com/erosmontin/pyml.git@v3.0.0",
     "tqdm>=4.60.0",
     "imbalanced-learn>=0.9.0",
 ]
