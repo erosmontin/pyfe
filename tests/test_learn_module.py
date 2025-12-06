@@ -22,6 +22,11 @@ try:
         run_full_grid_search
     )
     print("   ✓ All imports successful")
+    
+    # Check if pyml is available
+    PYML_AVAILABLE = OptunaOptimizer is not None
+    print(f"   ✓ PYML available: {PYML_AVAILABLE}")
+    
 except Exception as e:
     print(f"   ✗ Import failed: {e}")
     exit(1)
@@ -80,47 +85,51 @@ except Exception as e:
     traceback.print_exc()
     exit(1)
 
-# Test 5: Optuna optimizer
+# Test 5: Optuna optimizer (requires pyml)
 print("\n5. Testing Optuna optimizer...")
-try:
-    from sklearn.ensemble import RandomForestClassifier
-    from sklearn.model_selection import cross_val_score
-    
-    optimizer = OptunaOptimizer(
-        estimator_class=RandomForestClassifier,
-        n_trials=3,  # Very few for speed
-        direction='maximize'
-    )
-    
-    def objective(estimator):
-        return cross_val_score(estimator, X, y, cv=2, scoring='accuracy').mean()
-    
-    result = optimizer.optimize(objective, show_progress_bar=False)
-    
-    assert 'best_params' in result, "No best params returned"
-    assert 'best_value' in result, "No best value returned"
-    
-    print(f"   ✓ Optimization completed (best score: {result['best_value']:.4f})")
-except Exception as e:
-    print(f"   ✗ Optimizer test failed: {e}")
-    import traceback
-    traceback.print_exc()
-    exit(1)
-
-# Test 6: Experiment tracker
-print("\n6. Testing experiment tracker...")
-try:
-    import tempfile
-    import os
-    
-    # Create temp database
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = os.path.join(tmpdir, 'test.db')
+if PYML_AVAILABLE:
+    try:
+        from sklearn.ensemble import RandomForestClassifier
+        from sklearn.model_selection import cross_val_score
         
-        tracker = ExperimentTracker(
-            db_path=db_path,
-            experiment_name='test_experiment'
+        optimizer = OptunaOptimizer(
+            estimator_class=RandomForestClassifier,
+            n_trials=3,  # Very few for speed
+            direction='maximize'
         )
+        
+        def objective(estimator):
+            return cross_val_score(estimator, X, y, cv=2, scoring='accuracy').mean()
+        
+        result = optimizer.optimize(objective, show_progress_bar=False)
+        
+        assert 'best_params' in result, "No best params returned"
+        assert 'best_value' in result, "No best value returned"
+        
+        print(f"   ✓ Optimization completed (best score: {result['best_value']:.4f})")
+    except Exception as e:
+        print(f"   ✗ Optimizer test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        exit(1)
+else:
+    print("   - Skipping Optuna optimizer test (pyml not available)")
+
+# Test 6: Experiment tracker (requires pyml)
+print("\n6. Testing experiment tracker...")
+if PYML_AVAILABLE:
+    try:
+        import tempfile
+        import os
+        
+        # Create temp database
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, 'test.db')
+            
+            tracker = ExperimentTracker(
+                db_path=db_path,
+                experiment_name='test_experiment'
+            )
         
         # Log a dummy result
         tracker.log_result({
@@ -137,11 +146,13 @@ try:
         assert len(results_df) == 1, "Result not logged correctly"
         
         print(f"   ✓ Experiment tracking works")
-except Exception as e:
-    print(f"   ✗ Tracker test failed: {e}")
-    import traceback
-    traceback.print_exc()
-    exit(1)
+    except Exception as e:
+        print(f"   ✗ Tracker test failed: {e}")
+        import traceback
+        traceback.print_exc()
+        exit(1)
+else:
+    print("   - Skipping experiment tracker test (pyml not available)")
 
 print("\n" + "="*80)
 print("ALL TESTS PASSED! ✓")

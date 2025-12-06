@@ -17,9 +17,18 @@ from tqdm import tqdm
 
 from .estimators import get_all_classifiers, get_all_regressors, get_classifier_by_name, get_regressor_by_name
 from .selectors import get_selector_by_name, list_selectors
-from .optimizer import OptunaOptimizer
-from .evaluator import ModelEvaluator
-from .tracker import ExperimentTracker
+
+# Import from pyml (optional dependency)
+try:
+    from pyml.tuning import OptunaOptimizer
+    from pyml.evaluation import ModelEvaluator
+    from pyml.training import ExperimentTracker
+    PYML_AVAILABLE = True
+except ImportError:
+    OptunaOptimizer = None
+    ModelEvaluator = None
+    ExperimentTracker = None
+    PYML_AVAILABLE = False
 
 warnings.filterwarnings('ignore')
 
@@ -103,19 +112,25 @@ class GridSearchEngine:
             self.estimators = estimators
         
         # Setup evaluator
-        self.evaluator = ModelEvaluator(
-            cv=cv,
-            random_state=random_state,
-            use_smote=use_smote,
-            n_jobs=n_jobs
-        )
+        if PYML_AVAILABLE:
+            self.evaluator = ModelEvaluator(
+                cv=cv,
+                random_state=random_state,
+                use_smote=use_smote,
+                n_jobs=n_jobs
+            )
+        else:
+            raise ImportError("pyml package is required for GridSearchEngine. Install with: pip install pyfe[ml]")
         
         # Setup tracker
         if db_path or experiment_name:
-            self.tracker = ExperimentTracker(
-                db_path=db_path,
-                experiment_name=experiment_name or 'grid_search'
-            )
+            if PYML_AVAILABLE:
+                self.tracker = ExperimentTracker(
+                    db_path=db_path,
+                    experiment_name=experiment_name or 'grid_search'
+                )
+            else:
+                raise ImportError("pyml package is required for ExperimentTracker. Install with: pip install pyfe[ml]")
         else:
             self.tracker = None
         
@@ -222,6 +237,8 @@ class GridSearchEngine:
         
         # Optimize hyperparameters if requested
         if self.tune_hyperparams:
+            if not PYML_AVAILABLE:
+                raise ImportError("pyml package is required for hyperparameter tuning. Install with: pip install pyfe[ml]")
             optimizer = OptunaOptimizer(
                 estimator_class=estimator_class,
                 estimator_name=estimator_name,

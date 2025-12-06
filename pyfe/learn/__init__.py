@@ -21,6 +21,7 @@ from .estimators import (
 from .selectors import (
     get_all_selectors,
     get_selector_by_name,
+    list_selectors,
     SELECTOR_REGISTRY
 )
 

@@ -580,8 +580,8 @@ def theF(X,d,augonly=False,saveimages=None):
     try:
         aug=X["augment"]
     except:
-        aug=[]
-    if "resample" in aug["options"].keys():
+        aug={}
+    if isinstance(aug, dict) and "options" in aug and "resample" in aug["options"].keys():
         resampleflag=True
         resample=aug["options"]["resample"]
     line2=deepcopy(line)
