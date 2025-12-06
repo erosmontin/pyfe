@@ -24,17 +24,17 @@ from .selectors import (
     SELECTOR_REGISTRY
 )
 
-# Import from pyable-ml (shared utilities)
-from pyable_ml.tuning import (
+# Import from pyml (shared utilities)
+from pyml.tuning import (
     OptunaOptimizer,
     suggest_params
 )
 
-from pyable_ml.evaluation import (
+from pyml.evaluation import (
     ModelEvaluator,
 )
 
-from pyable_ml.training import (
+from pyml.training import (
     ExperimentTracker,
 )
 
