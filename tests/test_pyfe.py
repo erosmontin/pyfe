@@ -16,6 +16,7 @@ try:
         PyableDataset,
         Compose,
         RandomTranslation,
+        RandomRotation,
         RandomFlip,
         IntensityNormalization
     )
@@ -25,6 +26,7 @@ except ImportError:
     PyableDataset = None
     Compose = None
     RandomTranslation = None
+    RandomRotation = None
     RandomFlip = None
     IntensityNormalization = None
 
@@ -101,51 +103,86 @@ def test_feature_extraction_2d():
         lm_path = tmpdir / "test_2d_lm.nii.gz"
         sitk.WriteImage(lm_2d, str(lm_path))
 
-        if DATALOADER_AVAILABLE and False:  # Temporarily disabled for 2D due to orientation issues
-            # Use pyable-dataloaders
-            print("Using PyableDataset for 2D test...")
+        if DATALOADER_AVAILABLE:
+            # Use pyable-dataloaders with augmentation (5 augmentations per image)
+            print("Using PyableDataset with 5 augmentations for 2D test...")
 
-            # Create manifest in pyable format
-            manifest_data = {
-                "test_2d_region1": {
+            # Create augmentation transforms
+            transforms = Compose([
+                IntensityNormalization(method='zscore'),
+                RandomTranslation(
+                    translation_range=[[-3, 3], [-3, 3]], 
+                    prob=0.9  # High probability for augmentation
+                ),
+                RandomRotation(
+                    angle_range=[[-15, 15], [-15, 15]], 
+                    prob=0.8
+                ),
+                RandomFlip(axes=[0, 1], prob=0.6)
+            ])
+
+            # Create manifest with 5 entries for 5 augmentations
+            manifest_data = {}
+            for aug_idx in range(5):  # 5 augmentations
+                manifest_data[f"test_2d_aug{aug_idx}_region1"] = {
                     "images": [str(img_path)],
                     "labelmaps": [str(lm_path)],
                     "label": 1
-                },
-                "test_2d_region23": {
+                }
+                manifest_data[f"test_2d_aug{aug_idx}_region23"] = {
                     "images": [str(img_path)],
                     "labelmaps": [str(lm_path)],
                     "label": 23
                 }
-            }
 
             manifest_path = tmpdir / "manifest_2d.json"
             with open(manifest_path, 'w') as f:
                 json.dump(manifest_data, f)
 
-            # Create PyableDataset
+            # Create PyableDataset with transforms
             dataset = PyableDataset(
                 manifest=str(manifest_path),
                 target_size=[64, 64],
-                target_spacing=[1.0, 1.0]
+                target_spacing=[1.0, 1.0],
+                transforms=transforms,
+                return_meta=True
             )
 
-            # Extract features manually for each sample
+            # Extract features for all 10 augmented samples (5 aug × 2 labels)
             results = []
             ids = []
 
             for idx in range(len(dataset)):
                 sample = dataset[idx]
 
+                # Save augmented image and labelmap to temporary files
+                aug_img_path = tmpdir / f"aug_2d_img_{idx}.nii.gz"
+                aug_lm_path = tmpdir / f"aug_2d_lm_{idx}.nii.gz"
+                
+                # Convert tensors to SimpleITK images and save
+                img_tensor = sample['images'][0]  # Assuming single image per sample
+                lm_tensor = sample['labelmaps'][0]  # Assuming single labelmap per sample
+                
+                # Convert to numpy and then to SimpleITK
+                img_array = img_tensor.numpy()
+                lm_array = lm_tensor.numpy()
+                
+                # Create SimpleITK images (2D case)
+                img_sitk = sitk.GetImageFromArray(img_array)
+                lm_sitk = sitk.GetImageFromArray(lm_array.astype(np.int32))
+                
+                sitk.WriteImage(img_sitk, str(aug_img_path))
+                sitk.WriteImage(lm_sitk, str(aug_lm_path))
+
                 # Create pyfe manifest entry for this sample
                 manifest_entry = {
-                    "id": f"sample_{idx}",
+                    "id": f"sample_2d_{idx}_aug",
                     "data": [{
-                        "image": sample['original_images'][0],  # Use original space
-                        "labelmap": sample['original_rois'][0] if 'original_rois' in sample else sample['original_labelmaps'][0],
-                        "labelmapvalue": sample['label'],
+                        "image": str(aug_img_path),
+                        "labelmap": str(aug_lm_path),
+                        "labelmapvalue": int(sample['label']),
                         "groups": [{"type": "SS", "name": "SS", "options": {}}, {"type": "FOS", "name": "FOS", "options": {}}],
-                        "groupPrefix": f"region{sample['label']}"
+                        "groupPrefix": f"region{int(sample['label'])}_aug"
                     }]
                 }
 
@@ -225,24 +262,28 @@ def test_feature_extraction_3d():
                 IntensityNormalization(method='zscore'),
                 RandomTranslation(
                     translation_range=[[-2, 2], [-2, 2], [-1, 1]], 
+                    prob=0.9  # High probability for augmentation
+                ),
+                RandomRotation(
+                    angle_range=[[-10, 10], [-10, 10], [-5, 5]], 
                     prob=0.8
                 ),
-                RandomFlip(axes=[1, 2], prob=0.5)
+                RandomFlip(axes=[1, 2], prob=0.6)
             ])
 
-            # Create manifest in pyable format
-            manifest_data = {
-                "test_3d_region1": {
+            # Create manifest with 5 entries for 5 augmentations
+            manifest_data = {}
+            for aug_idx in range(5):  # 5 augmentations
+                manifest_data[f"test_3d_aug{aug_idx}_region1"] = {
                     "images": [str(img_path)],
                     "labelmaps": [str(lm_path)],
                     "label": 1
-                },
-                "test_3d_region23": {
+                }
+                manifest_data[f"test_3d_aug{aug_idx}_region23"] = {
                     "images": [str(img_path)],
                     "labelmaps": [str(lm_path)],
                     "label": 23
                 }
-            }
 
             manifest_path = tmpdir / "manifest_3d.json"
             with open(manifest_path, 'w') as f:
