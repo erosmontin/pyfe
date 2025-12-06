@@ -36,5 +36,9 @@ __all__ = [
 try:
     from pyable_dataloader.pyfe_adapter import convert_manifest_to_pyfe
     __all__.append('convert_manifest_to_pyfe')
-except Exception:
-    convert_manifest_to_pyfe = None
+except ImportError:
+    try:
+        from .pyfe_adapter import convert_manifest_to_pyfe
+        __all__.append('convert_manifest_to_pyfe')
+    except ImportError:
+        convert_manifest_to_pyfe = None

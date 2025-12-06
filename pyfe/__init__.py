@@ -5,13 +5,21 @@ Feature extraction for radiomics and comprehensive ML pipeline.
 """
 
 # Version
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 
 # Core feature extraction (existing functionality)
 from .pyfe import (
     FE, BD2DecideFE, SS, FOS, TEXTURES, GLCM, GLRLM, PYRAD, BenfordFE,
     exrtactMyFeatures, exrtactMyFeaturesToPandas, exrtactMyFeaturesToSQLlite
 )
+
+# Adapter utilities
+try:
+    from .pyfe_adapter import convert_manifest_to_pyfe
+    ADAPTER_AVAILABLE = True
+except ImportError:
+    convert_manifest_to_pyfe = None
+    ADAPTER_AVAILABLE = False
 
 # Machine learning module (new)
 try:
@@ -26,6 +34,9 @@ __all__ = [
     'FE', 'BD2DecideFE', 'SS', 'FOS', 'TEXTURES', 'GLCM', 'GLRLM', 
     'PYRAD', 'BenfordFE',
     'exrtactMyFeatures', 'exrtactMyFeaturesToPandas', 'exrtactMyFeaturesToSQLlite',
+    
+    # Adapter utilities
+    'convert_manifest_to_pyfe',
     
     # ML module
     'learn',
