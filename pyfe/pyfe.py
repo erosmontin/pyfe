@@ -214,6 +214,37 @@ try:
     import radiomics.featureextractor as prsfe
     import radiomics
     PYRAD_AVAILABLE = True
+    _global_pyrad_extractor = None
+    _global_pyrad_settings = None
+
+    def initialize_pyrad_extractor(settings=None):
+        """Initialize a reusable global pyradiomics extractor in the current process.
+
+        settings: dict or None with keys similar to the PYRAD options (e.g., 'bin','radius','normalize')
+        This function is safe to call multiple times; it will reuse the extractor when already initialized.
+        """
+        global _global_pyrad_extractor, _global_pyrad_settings
+        if not PYRAD_AVAILABLE:
+            return None
+        if settings is None:
+            settings = {}
+        # Map the settings to the extractor configuration
+        config = {}
+        if "bin" in settings:
+            config['nbins'] = settings.get('bin')
+            config['binCount'] = settings.get('bin')
+        if "radius" in settings:
+            config['kernelRadius'] = [settings.get('radius')]
+            config['distances'] = [settings.get('radius')]
+        if "normalize" in settings:
+            config['normalize'] = settings.get('normalize')
+        # keep a copy of settings
+        _global_pyrad_settings = settings
+        # Create extractor
+        _global_pyrad_extractor = prsfe.RadiomicsFeatureExtractor(**config)
+        _global_pyrad_extractor.enableAllFeatures()
+        _global_pyrad_extractor.enableAllImageTypes()
+        return _global_pyrad_extractor
 except ImportError:
     prsfe = None
     radiomics = None
@@ -278,9 +309,19 @@ class PYRAD(TEXTURES):
         settings["interpolator"]=sitk.sitkNearestNeighbor
         
         
-        extractor = prsfe.RadiomicsFeatureExtractor(**settings)
-        extractor.enableAllFeatures()
-        extractor.enableAllImageTypes()
+        # Use a reusable global extractor when present (faster for batch extraction)
+        global _global_pyrad_extractor
+        try:
+            _global_pyrad_extractor  # exists
+        except NameError:
+            _global_pyrad_extractor = None
+
+        if _global_pyrad_extractor is None:
+            extractor = prsfe.RadiomicsFeatureExtractor(**settings)
+            extractor.enableAllFeatures()
+            extractor.enableAllImageTypes()
+        else:
+            extractor = _global_pyrad_extractor
         
         # extractor.enableFeatureClassByName(self.featurestype)
         #get extractor imagestypes
@@ -379,8 +420,55 @@ class BenfordFE(BD2DecideFE):
         return O
 
 
-import multiprocessing
-def exrtactMyFeatures(jf,dimension,parallel=True,augonly=False,saveimages=None):
+def _pyrad_worker_init(settings=None):
+    # Called per worker to initialize the global extractor instance
+    try:
+        initialize_pyrad_extractor(settings)
+    except Exception:
+        pass
+
+
+def exrtactMyFeatures(jf,dimension,parallel=True,augonly=False,saveimages=None,reuse_pyrad_extractor=False,pyrad_settings=None):
+    import multiprocessing
+
+    # Global pyradiomics extractor used to avoid rebuilding per-sample (speedup)
+    # The globals are declared and initialized at module import time
+    """Initialize a reusable global pyradiomics extractor in the current process.
+
+    settings: dict or None with keys similar to the PYRAD options (e.g., 'bin','radius','normalize')
+    This function is safe to call multiple times; it will reuse the extractor when already initialized.
+    """
+    global _global_pyrad_extractor, _global_pyrad_settings
+    if not PYRAD_AVAILABLE:
+        return None
+    if settings is None:
+        settings = {}
+    # Map the settings to the extractor configuration
+    config = {}
+    if "bin" in settings:
+        config['nbins'] = settings.get('bin')
+        config['binCount'] = settings.get('bin')
+    if "radius" in settings:
+        config['kernelRadius'] = [settings.get('radius')]
+        config['distances'] = [settings.get('radius')]
+    if "normalize" in settings:
+        config['normalize'] = settings.get('normalize')
+    # keep a copy of settings
+    _global_pyrad_settings = settings
+    # Create extractor
+    _global_pyrad_extractor = prsfe.RadiomicsFeatureExtractor(**config)
+    _global_pyrad_extractor.enableAllFeatures()
+    _global_pyrad_extractor.enableAllImageTypes()
+    return _global_pyrad_extractor
+
+def _pyrad_worker_init(settings=None):
+    # Called per worker to initialize the global extractor instance
+    try:
+        initialize_pyrad_extractor(settings)
+    except Exception:
+        pass
+
+def exrtactMyFeatures(jf,dimension,parallel=True,augonly=False,saveimages=None,reuse_pyrad_extractor=False,pyrad_settings=None):
     if isinstance(jf,str):
         P=pn.Pathable(jf)
         if not P.exists():
@@ -401,10 +489,18 @@ def exrtactMyFeatures(jf,dimension,parallel=True,augonly=False,saveimages=None):
     # f(L["dataset"][0]) #THEDEBUGAREA
     if parallel:
         from itertools import repeat
-        with multiprocessing.Pool() as p:
+        pool = None
+        # If requested, initialize a persistent pyradiomics extractor in each worker
+        if reuse_pyrad_extractor and PYRAD_AVAILABLE:
+            pool = multiprocessing.Pool(initializer=_pyrad_worker_init, initargs=(pyrad_settings,))
+        else:
+            pool = multiprocessing.Pool()
+        try:
             n=len(L["dataset"])
-            res = p.starmap(theF,zip(L["dataset"],[dimension]*n,[augonly]*n,[saveimages]*n))
-        p.close()
+            res = pool.starmap(theF, zip(L["dataset"], [dimension]*n, [augonly]*n, [saveimages]*n))
+        finally:
+            pool.close()
+            pool.join()
     else:
         res=[]
         for l in L["dataset"]:
@@ -427,11 +523,11 @@ def exrtactMyFeatures(jf,dimension,parallel=True,augonly=False,saveimages=None):
     return result,idx
 
 import pandas as pd
-def exrtactMyFeaturesToPandas(jf,dimension,max_level=3,parallel=True,augonly=False,saveimages=None):
+def exrtactMyFeaturesToPandas(jf,dimension,max_level=3,parallel=True,augonly=False,saveimages=None,reuse_pyrad_extractor=False,pyrad_settings=None):
     if saveimages!=None:
         LL=pn.Pathable(saveimages)
         LL.ensureDirectoryExistence()
-    r,ind=exrtactMyFeatures(jf,dimension,parallel,augonly=augonly,saveimages=saveimages)
+    r,ind=exrtactMyFeatures(jf,dimension,parallel,augonly=augonly,saveimages=saveimages,reuse_pyrad_extractor=reuse_pyrad_extractor,pyrad_settings=pyrad_settings)
     print("normalizing")
     X=pd.json_normalize(r,max_level=max_level)
     X.index=ind
@@ -514,7 +610,7 @@ def dataset_to_datasetbatches(JF,dimension, parallel):
         j={"dimension":dimension,"dataset":batch}
         new_dataset.append(j)
     return new_dataset        
-def exrtactMyFeaturesToSQLlite(jf,dimension,max_level=3,parallel=True,augonly=False,saveimages=None,db=None,table_name='extraction',extraction_configurations=None,log=None):
+def exrtactMyFeaturesToSQLlite(jf,dimension,max_level=3,parallel=True,augonly=False,saveimages=None,db=None,table_name='extraction',extraction_configurations=None,log=None,reuse_pyrad_extractor=False,pyrad_settings=None):
     # create a database in memory in case user doesn't pass it as an argument
     LOG= log is not None
     if LOG:
@@ -545,7 +641,7 @@ def exrtactMyFeaturesToSQLlite(jf,dimension,max_level=3,parallel=True,augonly=Fa
             print("continue")
             continue
         else:
-            rs,inds=exrtactMyFeatures(b,dimension,parallel,augonly=augonly,saveimages=saveimages)
+            rs,inds=exrtactMyFeatures(b,dimension,parallel,augonly=augonly,saveimages=saveimages,reuse_pyrad_extractor=reuse_pyrad_extractor,pyrad_settings=pyrad_settings)
             if LOG:
                 log.append(f"Extracted {len(inds)} features\n")
                 log.dump()
@@ -741,6 +837,68 @@ def computeRow(line,d):
 
 
     return out
+
+
+def extract_features_from_arrays(images, rois, groups, ids=None, dimension=3, parallel=False, reuse_pyrad_extractor=False, pyrad_settings=None):
+    """Extract features directly from in-memory SimpleITK images and masks.
+
+    images: list of SimpleITK images
+    rois: list of SimpleITK labelmaps (binary masks or labelmaps)
+    groups: list of group lists (same format as manifest entries)
+    ids: optional list of ids
+    Returns: list of feature dicts and list of ids
+    """
+    if ids is None:
+        ids = [f"id_{i}" for i in range(len(images))]
+    if reuse_pyrad_extractor and PYRAD_AVAILABLE:
+        initialize_pyrad_extractor(pyrad_settings)
+
+    res = []
+    idxs = []
+    for im, roi, grp, idv in zip(images, rois, groups, ids):
+        out = {}
+        for s in grp:
+            a = s["type"].lower() if isinstance(s, dict) else s[0].lower()
+            o = s.get("options", {}) if isinstance(s, dict) else {}
+            name = s.get("name", a) if isinstance(s, dict) else a
+            try:
+                if a == "benford":
+                    # compute ROI values as numpy
+                    im_arr = sitk.GetArrayFromImage(im)
+                    roi_arr = sitk.GetArrayFromImage(roi)
+                    vals = im_arr[roi_arr == 1]
+                    vals = np.array(vals, dtype=float)
+                    df = pd.DataFrame(vals, columns=['roi'])
+                    df.replace([np.inf, -np.inf], np.nan, inplace=True)
+                    df.dropna(inplace=True)
+                    BF, SD = getBenford(df)
+                    BF.sort_index(inplace=True)
+                    Chi, K = getChi(BF.Found, BF.Expected, True)
+                    domain = f"{name}_Benford"
+                    out[domain] = K.to_dict()
+                    out[domain]['Chi_stat'] = Chi
+                    for k, v in SD.AbsDif.to_dict().items():
+                        out[domain][f"AbsoluteDiff_{k}"] = v
+                elif a in ("pyrad", "pyradiomic", "pyradiomics"):
+                    # Use the global extractor where possible
+                    global _global_pyrad_extractor
+                    if reuse_pyrad_extractor and _global_pyrad_extractor is None:
+                        initialize_pyrad_extractor(pyrad_settings)
+                    extractor = _global_pyrad_extractor if _global_pyrad_extractor is not None else prsfe.RadiomicsFeatureExtractor()
+                    extractor.enableAllFeatures()
+                    extractor.enableAllImageTypes()
+                    # Ensure images are sitk objects
+                    P = extractor.execute(im, roi)
+                    domain = f"{name}_PYRAD"
+                    out[domain] = {k: float(v) for k, v in P.items() if 'diagnostic' not in k}
+                else:
+                    # Not implemented: other types (ss, fos, glcm, glrlm) require on-disk files or compiled libs
+                    continue
+            except Exception:
+                continue
+        res.append(out)
+        idxs.append(idv)
+    return res, idxs
 
 
 if __name__=="__main__":

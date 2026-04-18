@@ -4,3 +4,8 @@ dist/*
 pyfe/test_.py
 pyfe/test_0.py
 errors_extrac*.txt
+agent_request_multiple_augmentations.md
+data/
+=3
+3.1
+default.db

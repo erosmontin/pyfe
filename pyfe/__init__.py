@@ -11,6 +11,7 @@ __version__ = "3"
 from .pyfe import (
     FE, BD2DecideFE, SS, FOS, TEXTURES, GLCM, GLRLM, BenfordFE,
     exrtactMyFeatures, exrtactMyFeaturesToPandas, exrtactMyFeaturesToSQLlite
+    , extract_features_from_arrays, initialize_pyrad_extractor
 )
 
 # Import PYRAD if available
@@ -42,6 +43,7 @@ __all__ = [
     'FE', 'BD2DecideFE', 'SS', 'FOS', 'TEXTURES', 'GLCM', 'GLRLM', 
     'BenfordFE',
     'exrtactMyFeatures', 'exrtactMyFeaturesToPandas', 'exrtactMyFeaturesToSQLlite',
+    'extract_features_from_arrays', 'initialize_pyrad_extractor',
 ]
 
 # Add PYRAD if available
